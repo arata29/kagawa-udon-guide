@@ -12,3 +12,71 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Place {
+  id          String   @id @default(cuid())
+  placeId     String   @unique
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  isHidden    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cache       PlaceCache?
+}
+
+model PlaceCache {
+  id        String   @id @default(cuid())
+  placeId   String   @unique
+  place     Place    @relation(fields: [placeId], references: [placeId], onDelete: Cascade)
+
+  name      String
+  address   String?
+  area      String?
+  lat       Float?
+  lng       Float?
+  types     String[]  @default([])
+  fetchedAt DateTime  @default(now())
+
+  rating          Float?
+  userRatingCount Int?
+  googleMapsUri   String?
+
+  reviewSummary   String?
+
+  @@index([fetchedAt])
+  @@index([name])
+  @@index([area])
+}
+
+model Ranking {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String?
+  area        String?       // 例: 高松, 丸亀, 観音寺
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  items       RankingItem[]
+}
+
+model RankingItem {
+  id          String   @id @default(cuid())
+  rankingId   String
+  ranking     Ranking  @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+
+  rank        Int      // 1,2,3...
+  placeId     String   // PlaceCache.placeId を参照して表示する
+  note        String?  // 一言コメント
+  recommend   String?  // 推しメニュー
+  tags        String[] @default([])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([rankingId, rank])
+  @@index([placeId])
+}
+
