@@ -59,9 +59,6 @@ export default async function AreaRanking(props: {
               <Link className="app-button app-button--ghost" href="/rankings">
                 ランキング一覧へ
               </Link>
-              <Link className="app-button app-button--ghost" href="/list">
-                一覧へ
-              </Link>
             </div>
           </div>
         </section>
@@ -101,9 +98,6 @@ export default async function AreaRanking(props: {
             <div className="mt-4 flex flex-wrap gap-2">
               <Link className="app-button app-button--ghost" href="/rankings">
                 ランキング一覧へ
-              </Link>
-              <Link className="app-button app-button--ghost" href="/list">
-                一覧へ
               </Link>
             </div>
           </div>
@@ -181,9 +175,6 @@ export default async function AreaRanking(props: {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="app-button app-button--ghost" href="/rankings">
               ランキング一覧へ
-            </Link>
-            <Link className="app-button app-button--ghost" href="/list">
-              一覧へ
             </Link>
           </div>
         </div>

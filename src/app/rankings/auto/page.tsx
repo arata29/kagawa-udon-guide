@@ -63,9 +63,6 @@ export default async function AutoRanking({
               <Link className="app-button app-button--ghost" href="/rankings">
                 ランキング一覧へ
               </Link>
-              <Link className="app-button app-button--ghost" href="/list">
-                一覧へ
-              </Link>
             </div>
           </div>
         </section>
@@ -147,14 +144,6 @@ export default async function AutoRanking({
           <p className="app-lead">
             Googleの評価とレビュー件数からベイズ平均で算出しています。
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link className="app-button app-button--ghost" href="/list">
-              一覧へ
-            </Link>
-            <Link className="app-button app-button--ghost" href="/map">
-              地図で探す
-            </Link>
-          </div>
         </div>
         <div className="app-hero-meta">
           <div className="app-stat">

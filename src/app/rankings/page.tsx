@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "ランキング一覧",
   description:
-    "香川県うどんランキングの案内ページ。総合ランキングとエリア別ランキングへ進めます。",
+    "香川県うどんランキングの案内ページ。総合ランキングと地域別ランキングへ進めます。",
 };
 
 export default async function RankingsHub() {
@@ -48,14 +48,6 @@ export default async function RankingsHub() {
           <p className="app-lead">
             Googleの評価とレビュー件数をもとに、香川県のうどん店をランキング形式で紹介しています。
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link className="app-button app-button--ghost" href="/list">
-              一覧へ
-            </Link>
-            <Link className="app-button app-button--ghost" href="/map">
-              地図で探す
-            </Link>
-          </div>
         </div>
         <div className="app-hero-meta">
           <div className="app-stat">
@@ -92,7 +84,7 @@ export default async function RankingsHub() {
             <div>
               <div className="font-semibold">エリア別ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                DBに登録された area ごとのランキング一覧です。
+                自動取得したうどん屋を地域別に集計した、ランキング一覧です。
               </div>
             </div>
             <div className="text-xs app-muted whitespace-nowrap">
@@ -119,10 +111,6 @@ export default async function RankingsHub() {
               ))}
             </ul>
           )}
-        </section>
-
-        <section className="text-xs app-muted">
-          <p>※評価/件数は Google Places のデータに基づきます。</p>
         </section>
       </div>
     </main>
