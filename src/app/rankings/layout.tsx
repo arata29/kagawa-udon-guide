@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "ランキング一覧",
-  description: "香川県うどんランキングの一覧。総合/エリア別ランキングをチェック。",
+  description:
+    "香川県うどんランキングの一覧ページ。総合ランキングとエリア別ランキングをチェックできます。",
 };
 
 export default function RankingsLayout({

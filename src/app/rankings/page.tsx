@@ -73,7 +73,7 @@ export default async function RankingsHub() {
 
       <div className="mt-6 space-y-4">
         <section className="app-card">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <div className="font-semibold">総合ランキング</div>
               <div className="mt-1 text-sm app-muted">
@@ -88,7 +88,7 @@ export default async function RankingsHub() {
         </section>
 
         <section className="app-card">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <div className="font-semibold">エリア別ランキング</div>
               <div className="mt-1 text-sm app-muted">
