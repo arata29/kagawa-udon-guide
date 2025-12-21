@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import UdonIcon from "@/components/UdonIcon";
 import "./globals.css";
 
@@ -176,6 +177,7 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+        <Analytics />
       </body>
     </html>
   );
