@@ -129,14 +129,6 @@ export default async function ListPage({
           <p className="app-lead">
             店名や住所で検索し、評価やレビュー件数で絞り込みできます。
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link className="app-button app-button--ghost" href="/rankings">
-              ランキングを見る
-            </Link>
-            <Link className="app-button app-button--ghost" href="/map">
-              地図で探す
-            </Link>
-          </div>
         </div>
         <div className="app-hero-meta">
           <div className="app-stat">

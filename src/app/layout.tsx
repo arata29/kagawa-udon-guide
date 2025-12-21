@@ -106,7 +106,7 @@ export default function RootLayout({
                 href="/map"
                 className="app-nav-link focus:outline-none focus:ring-2 focus:ring-orange-300 rounded"
               >
-                地図
+                マップ
               </Link>
               <Link
                 href="/contact"
