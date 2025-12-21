@@ -75,7 +75,7 @@ export default function RootLayout({
         <header className="site-header border-b">
           <div className="app-shell app-shell--header flex items-center justify-between gap-4">
             <Link
-              href="/rankings/auto"
+              href="/"
               className="brand focus:outline-none focus:ring-2 focus:ring-orange-300 rounded"
             >
               <UdonIcon className="brand-icon" />
@@ -126,7 +126,7 @@ export default function RootLayout({
               <div>
                 <div className="footer-title">ナビリンク</div>
                 <div className="footer-links">
-                  <Link className="footer-link" href="/rankings/auto">
+                  <Link className="footer-link" href="/">
                     総合ランキング
                   </Link>
                   <Link className="footer-link" href="/rankings">

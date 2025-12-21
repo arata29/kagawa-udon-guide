@@ -1,5 +1,9 @@
-import { redirect } from "next/navigation";
+import AutoRanking from "./rankings/auto/page";
 
-export default function Home() {
-  redirect("/rankings/auto");
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  return AutoRanking({ searchParams });
 }
