@@ -1,10 +1,33 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
+import type { Metadata } from "next";
+import UdonIcon from "@/components/UdonIcon";
 
-export default async function AutoRanking() {
-  // 評価と件数が揃っている店だけランキング対象にする
-  // ※ 香川県縛りは address で暫定（より確実にするなら area / isKagawa フラグなどをDBに持つのがおすすめ）
+export const metadata: Metadata = {
+  title: "香川県うどん総合ランキング",
+  description:
+    "Googleの評価とレビュー件数をもとに香川県のうどん店を自動ランキング。",
+};
+
+export default async function AutoRanking({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const buildPageList = (current: number, total: number) => {
+    const pages = new Set<number>();
+    pages.add(1);
+    pages.add(total);
+    for (let i = current - 1; i <= current + 1; i++) {
+      if (i >= 1 && i <= total) pages.add(i);
+    }
+    return Array.from(pages).sort((a, b) => a - b);
+  };
+
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp.page ?? "1") || 1);
+
   const rows = await prisma.placeCache.findMany({
     where: {
       rating: { not: null },
@@ -25,55 +48,140 @@ export default async function AutoRanking() {
 
   if (rows.length === 0) {
     return (
-      <main className="p-6 max-w-3xl mx-auto">
-        <section className="app-card">
-          <h1 className="text-xl font-bold">自動ランキング</h1>
-          <p className="mt-3 text-sm app-muted">
-            まだ評価データがありません。（sync:details を実行してください）
-          </p>
-          <div className="mt-5">
-            <Link className="text-sm underline" href="/rankings">
-              ← ランキング一覧へ
-            </Link>
+      <main className="app-shell page-in">
+        <section className="app-hero">
+          <div>
+            <p className="app-kicker">Sanuki Udon Ranking</p>
+            <h1 className="app-title">
+              <UdonIcon className="app-title-icon" />
+              総合ランキング
+            </h1>
+            <p className="app-lead">
+              まだ評価データがありません。sync:details を実行してください。
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link className="app-button app-button--ghost" href="/rankings">
+                ランキング一覧へ
+              </Link>
+              <Link className="app-button app-button--ghost" href="/list">
+                一覧へ
+              </Link>
+            </div>
           </div>
         </section>
       </main>
     );
   }
 
-  // 全体平均 C（全店の平均評価）
+  const { _max } = await prisma.placeCache.aggregate({
+    _max: { fetchedAt: true },
+  });
+  const lastSynced = _max.fetchedAt;
+  const lastSyncedLabel = lastSynced
+    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
+    : null;
+
   const C = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
+  const m = 50;
 
-  // m: 下駄（レビュー件数の“最低信用ライン”）
-  const m = 50; // 好みで 30〜100 くらい
-
-  // ベイズ平均でスコア化し、上位を抽出
   const ranked = rows
     .map((r) => {
       const R = r.rating ?? 0;
       const v = r.userRatingCount ?? 0;
       return { ...r, score: bayesScore(R, v, C, m) };
     })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 50);
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      if ((b.userRatingCount ?? 0) !== (a.userRatingCount ?? 0)) {
+        return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+      }
+      if ((b.rating ?? 0) !== (a.rating ?? 0)) {
+        return (b.rating ?? 0) - (a.rating ?? 0);
+      }
+      return String(a.placeId).localeCompare(String(b.placeId));
+    });
+
+  const perPage = 50;
+  const totalPages = Math.max(1, Math.ceil(ranked.length / perPage));
+  const currentPage = Math.min(totalPages, page);
+  const startIndex = (currentPage - 1) * perPage;
+  const endIndex = Math.min(startIndex + perPage, ranked.length);
+  const paged = ranked.slice(startIndex, endIndex);
+  const prevPage = Math.max(1, currentPage - 1);
+  const nextPage = Math.min(totalPages, currentPage + 1);
+  const pageList = buildPageList(currentPage, totalPages);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "香川県うどん自動ランキング",
+    itemListElement: paged.map((r, idx) => ({
+      "@type": "ListItem",
+      position: startIndex + idx + 1,
+      name: r.name,
+      url:
+        r.googleMapsUri ??
+        (r.lat != null && r.lng != null
+          ? `https://www.google.com/maps?q=${r.lat},${r.lng}&z=16`
+          : `https://www.google.com/maps?q=${encodeURIComponent(
+              `${r.name} ${r.address ?? ""}`
+            )}&z=16`),
+    })),
+  };
 
   return (
-    <main className="p-6 max-w-3xl mx-auto">
-      <header className="flex items-end justify-between gap-4">
+    <main className="app-shell page-in">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <section className="app-hero">
         <div>
-          <h1 className="text-2xl font-bold">自動ランキング（レビュー評価ベース）</h1>
-          <p className="mt-2 text-sm app-muted">
-            スコア = ベイズ平均（m={m} / 平均C={C.toFixed(2)}）
+          <p className="app-kicker">Sanuki Udon Ranking</p>
+          <h1 className="app-title">
+            <UdonIcon className="app-title-icon" />
+            総合ランキング
+          </h1>
+          <p className="app-lead">
+            Googleの評価とレビュー件数からベイズ平均で算出しています。
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="app-button app-button--ghost" href="/list">
+              一覧へ
+            </Link>
+            <Link className="app-button app-button--ghost" href="/map">
+              地図で探す
+            </Link>
+          </div>
         </div>
-        <Link className="text-sm underline" href="/rankings">
-          ランキング一覧
-        </Link>
-      </header>
+        <div className="app-hero-meta">
+          <div className="app-stat">
+            <span className="app-stat-value">{ranked.length}</span>
+            <span className="app-stat-label">店舗</span>
+          </div>
+          <div className="app-stat">
+            <span className="app-stat-value">{lastSyncedLabel ?? "未更新"}</span>
+            <span className="app-stat-label">最終更新</span>
+          </div>
+        </div>
+      </section>
 
-      <ol className="mt-6 space-y-4">
-        {ranked.map((r, idx) => {
-          // Google Maps URL（place詳細が無くても開けるように fallback）
+      <section className="app-card mt-6">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="app-badge app-badge--soft">m={m}</span>
+          <span className="app-badge app-badge--soft">平均C={C.toFixed(2)}</span>
+          <span className="app-muted">スコアはベイズ平均で算出</span>
+        </div>
+      </section>
+
+      <div className="mt-4 text-xs app-muted">
+        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}件/ページ）
+      </div>
+
+      <ol className="mt-4 space-y-4">
+        {paged.map((r, idx) => {
           const openMapsUrl =
             r.googleMapsUri ??
             (r.lat != null && r.lng != null
@@ -85,10 +193,11 @@ export default async function AutoRanking() {
           return (
             <li key={r.placeId} className="app-card">
               <div className="flex items-start justify-between gap-4">
-                {/* 左：順位と店名 */}
                 <div className="min-w-0">
                   <div className="flex items-center gap-3">
-                    <span className="app-badge">{idx + 1}</span>
+                    <span className="app-badge app-badge--accent">
+                      #{startIndex + idx + 1}
+                    </span>
                     <div className="font-semibold break-words">{r.name}</div>
                   </div>
 
@@ -98,27 +207,28 @@ export default async function AutoRanking() {
                     </div>
                   )}
 
-                  {/* 評価バッジ */}
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="app-badge">★ {r.rating}</span>
-                    <span className="app-badge">{r.userRatingCount} 件</span>
+                    <span className="app-badge app-badge--accent">
+                      ★ {r.rating}
+                    </span>
+                    <span className="app-badge app-badge--soft">
+                      {r.userRatingCount}件
+                    </span>
                   </div>
 
-                  {/* スコア表示（納得感UP。不要なら削除OK） */}
                   <div className="mt-2 text-xs app-muted">
                     score: {r.score.toFixed(3)}
                   </div>
                 </div>
 
-                {/* 右：ボタン */}
                 <div className="flex flex-col gap-2 shrink-0">
                   <a
-                    className="rounded-xl border px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                    className="app-button app-button--ghost"
                     href={openMapsUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Googleマップで開く
+                    Googleマップへ
                   </a>
                 </div>
               </div>
@@ -127,8 +237,53 @@ export default async function AutoRanking() {
         })}
       </ol>
 
-      <p className="mt-8 text-xs app-muted">
-        ※評価/件数は Google Places のデータに基づきます。最新化は sync:details の実行タイミングに依存します。
+      <nav className="mt-8 flex flex-wrap gap-2 justify-between text-sm">
+        <Link
+          className={`app-button app-button--ghost ${
+            currentPage <= 1 ? "pointer-events-none opacity-50" : ""
+          }`}
+          href={`/rankings/auto?page=${prevPage}`}
+        >
+          ← 前へ
+        </Link>
+
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {pageList.map((p, idx) => {
+            const prev = pageList[idx - 1];
+            const showEllipsis = prev != null && p - prev > 1;
+            return (
+              <span key={p} className="flex items-center gap-2">
+                {showEllipsis && <span className="app-muted">…</span>}
+                {p === currentPage ? (
+                  <span className="app-badge app-badge--accent">{p}</span>
+                ) : (
+                  <Link
+                    className="app-button app-button--ghost"
+                    href={`/rankings/auto?page=${p}`}
+                  >
+                    {p}
+                  </Link>
+                )}
+              </span>
+            );
+          })}
+          <span className="app-muted">
+            {currentPage}/{totalPages}
+          </span>
+        </div>
+
+        <Link
+          className={`app-button app-button--ghost ${
+            currentPage >= totalPages ? "pointer-events-none opacity-50" : ""
+          }`}
+          href={`/rankings/auto?page=${nextPage}`}
+        >
+          次へ →
+        </Link>
+      </nav>
+
+      <p className="mt-6 text-xs app-muted">
+        ※評価/件数は Google Places のデータに基づきます。
       </p>
     </main>
   );

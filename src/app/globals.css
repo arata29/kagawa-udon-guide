@@ -1,54 +1,46 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
-/* =========================================================
-  Theme variables
-========================================================= */
 :root {
-  /* 背景と文字（ライト） */
-  --background: linen;
-  --foreground: #111827; /* 読みやすい濃いグレー */
-
-  /* 罫線・カード */
-  --border: rgba(0, 0, 0, 0.12);         /* border-black/10 相当より少し上品 */
-  --card-bg: rgba(255, 255, 255, 0.80);  /* 透ける白で柔らかく */
-  --card-bg-solid: #ffffff;              /* 入力などは透けない方が見やすい */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.08);
-  --shadow-md: 0 8px 20px rgba(0,0,0,0.12);
-
-  /* ヘッダー */
-  --header-bg: skyblue;
-  --header-fg: #0b1220;
-
-  /* リンク */
-  --link: #0b5bd3;
-
-  /* 角丸・余白 */
-  --radius: 1rem;  /* rounded-2xl 相当 */
-  --pad: 1rem;     /* p-4 相当 */
+  --bg-0: #fdf6e9;
+  --bg-1: #f7ead3;
+  --bg-2: #fff9f2;
+  --ink: #1f2a2e;
+  --muted: #5c6a6d;
+  --accent: #c96a2a;
+  --accent-ink: #fff7ee;
+  --accent-2: #2f4d4f;
+  --link: #1f6f78;
+  --border: rgba(110, 85, 60, 0.22);
+  --card-bg: rgba(255, 255, 255, 0.82);
+  --card-solid: #fff8ee;
+  --shadow-sm: 0 8px 18px rgba(103, 74, 46, 0.1);
+  --shadow-md: 0 20px 45px rgba(103, 74, 46, 0.18);
+  --radius: 18px;
+  --radius-lg: 26px;
+  --pad: 1.1rem;
+  --ring: rgba(201, 106, 42, 0.35);
 }
 
-/* ダークモード（OS設定追従） */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-
-    --border: rgba(255, 255, 255, 0.14);
-    --card-bg: rgba(24, 24, 27, 0.86);     /* zinc-900 相当 */
-    --card-bg-solid: rgb(24, 24, 27);
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.55);
-    --shadow-md: 0 10px 28px rgba(0,0,0,0.60);
-
-    --header-bg: rgba(56, 189, 248, 0.25); /* skyっぽさ残しつつ暗め */
-    --header-fg: #ededed;
-
-    --link: #93c5fd;
+    --bg-0: #141110;
+    --bg-1: #1b1715;
+    --bg-2: #171412;
+    --ink: #f5f1ea;
+    --muted: #c4b7a8;
+    --accent: #e19a60;
+    --accent-ink: #1e140d;
+    --accent-2: #86a6a4;
+    --link: #9ad1cf;
+    --border: rgba(225, 186, 146, 0.24);
+    --card-bg: rgba(28, 23, 19, 0.85);
+    --card-solid: #1c1714;
+    --shadow-sm: 0 10px 22px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 26px 60px rgba(0, 0, 0, 0.55);
+    --ring: rgba(225, 154, 96, 0.4);
   }
 }
 
-/* =========================================================
-  Base
-========================================================= */
 html {
   color-scheme: light dark;
   font-size: 16px;
@@ -56,105 +48,553 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-  line-height: 1.65;
+  background: linear-gradient(135deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
+  color: var(--ink);
+  font-family: var(--font-sans, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif);
+  line-height: 1.7;
+  min-height: 100vh;
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* 画像/iframe はみ出し防止 */
-img, svg, video, iframe {
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 10% 12%, rgba(201, 106, 42, 0.12), transparent 45%),
+    radial-gradient(circle at 85% 8%, rgba(47, 77, 79, 0.12), transparent 45%),
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.45), transparent 50%);
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: -1;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display, "Hiragino Mincho ProN", "Yu Mincho", serif);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+img,
+svg,
+video,
+iframe {
   max-width: 100%;
   height: auto;
 }
 
-/* 長い住所などの折り返し */
 * {
   overflow-wrap: anywhere;
 }
 
-/* =========================================================
-  Links / Focus
-========================================================= */
 a {
   color: var(--link);
 }
+
 a.underline {
-  text-underline-offset: 3px;
+  text-underline-offset: 4px;
   text-decoration-thickness: 1px;
 }
 
 :focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.55);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
-/* =========================================================
-  Form elements
-========================================================= */
-input, select, textarea {
-  background: var(--card-bg-solid);
-  color: var(--foreground);
+input,
+select,
+textarea {
+  background: var(--card-solid);
+  color: var(--ink);
   border-color: var(--border);
+  border-radius: 14px;
+  padding: 0.65rem 0.8rem;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-/* placeholder は薄く */
 input::placeholder,
 textarea::placeholder {
-  opacity: 0.65;
+  color: rgba(90, 85, 78, 0.7);
 }
 
-/* =========================================================
-  Header class (layout.tsxで使用)
-========================================================= */
 .site-header {
-  background: var(--header-bg);
-  color: var(--header-fg);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--ink);
+  backdrop-filter: blur(14px);
+  border-color: rgba(201, 106, 42, 0.18);
 }
 
-/* =========================================================
-  App UI helpers（Tailwind上書きを避ける）
-========================================================= */
-.app-text {
-  color: var(--foreground);
-}
-.app-muted {
-  color: rgba(17, 24, 39, 0.70);
-}
 @media (prefers-color-scheme: dark) {
-  .app-muted {
-    color: rgba(237, 237, 237, 0.70);
+  .site-header {
+    background: rgba(20, 17, 16, 0.78);
   }
 }
 
-/* app-card: rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition hover:shadow-md dark:* 相当 */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: inherit;
+}
+
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
+
+.brand-text {
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-family: var(--font-display, "Hiragino Mincho ProN", "Yu Mincho", serif);
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.app-nav-link {
+  color: var(--ink);
+  font-weight: 600;
+  padding: 0.15rem 0.1rem;
+  position: relative;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.app-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+
+.app-nav-link:hover::after {
+  transform: scaleX(1);
+}
+.app-nav-link:hover {
+  color: var(--accent-2);
+}
+
+.app-shell {
+  width: min(1120px, calc(100% - 2.5rem));
+  margin: 0 auto;
+  padding: clamp(1.6rem, 3vw, 2.6rem) 0 3.5rem;
+}
+
+.app-shell--wide {
+  width: min(1200px, calc(100% - 2.5rem));
+}
+
+.app-shell--header {
+  padding: 1.1rem 0;
+}
+
+.page-in {
+  animation: page-in 0.6s ease both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-in {
+    animation: none;
+  }
+  .app-card,
+  .app-button {
+    transition: none;
+  }
+}
+
+.app-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 240, 220, 0.7));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(1.2rem, 2.4vw, 2rem);
+  box-shadow: var(--shadow-md);
+}
+
+@media (min-width: 768px) {
+  .app-hero {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-hero {
+    background: linear-gradient(135deg, rgba(28, 23, 19, 0.92), rgba(40, 30, 24, 0.7));
+  }
+}
+
+.app-kicker {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.app-title {
+  font-size: clamp(1.6rem, 2.3vw, 2.3rem);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.4rem;
+}
+
+.app-title-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
+}
+
+.app-lead {
+  color: var(--muted);
+  margin-top: 0.6rem;
+  max-width: 38rem;
+}
+
+.app-hero-meta {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.app-stat {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.app-stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.app-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.app-text {
+  color: var(--ink);
+}
+
+.app-muted {
+  color: var(--muted);
+}
+
 .app-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--card-bg);
   padding: var(--pad);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 180ms ease, transform 180ms ease, background-color 180ms ease;
+  backdrop-filter: blur(6px);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .app-card:hover {
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+  border-color: rgba(201, 106, 42, 0.4);
 }
 
-/* バッジ（★/件数） */
+.app-card--mini {
+  padding: 0.75rem 0.9rem;
+  box-shadow: none;
+}
+
+.app-card--mini:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
 .app-badge {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--border);
   border-radius: 9999px;
-  padding: 0.2rem 0.65rem; /* 高さ確保 */
+  border: 1px solid var(--border);
+  padding: 0.2rem 0.7rem;
   font-size: 0.75rem;
   line-height: 1.25rem;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--card-solid);
+  color: var(--ink);
+  font-weight: 600;
 }
+
+.app-badge--accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+
+.app-badge--soft {
+  background: rgba(201, 106, 42, 0.12);
+  color: var(--accent-2);
+  border-color: rgba(201, 106, 42, 0.2);
+}
+
 @media (prefers-color-scheme: dark) {
   .app-badge {
-    background: rgba(255, 255, 255, 0.10);
+    background: #1c1714;
   }
+  .app-badge--accent {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .app-badge--soft {
+    background: rgba(225, 154, 96, 0.22);
+    color: #f5e9dc;
+  }
+}
+
+.app-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.6rem 1.2rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-sm);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  filter: brightness(0.98);
+}
+
+.app-button--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.app-button--ghost:hover {
+  box-shadow: none;
+  filter: none;
+  background: rgba(201, 106, 42, 0.08);
+}
+
+.app-map {
+  height: min(70vh, 720px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  background: var(--card-solid);
+}
+
+.map-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 340px) 1fr;
+}
+
+.map-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.map-panel-header {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 0.4rem;
+}
+
+.map-panel-grip {
+  display: none;
+  width: 48px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+  margin: 0 auto;
+}
+
+.map-panel-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.map-panel-toggle {
+  display: none;
+}
+
+.map-panel-content {
+  padding: 0.75rem 0.9rem 1rem;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+@media (max-width: 1024px) {
+  .map-layout {
+    display: block;
+  }
+
+  .app-map {
+    height: 55vh;
+    border-radius: 0;
+  }
+
+  .map-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    border-radius: 18px 18px 0 0;
+    height: 6vh;
+    transition: height 220ms ease;
+  }
+
+  .map-panel--expanded {
+    height: 90vh;
+  }
+
+  .map-panel-content {
+    max-height: calc(100% - 76px);
+  }
+
+  .map-panel-toggle {
+    display: inline-flex;
+  }
+
+  .map-panel-grip {
+    display: block;
+  }
+}
+
+.app-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 1.5rem 0;
+}
+
+.app-error {
+  color: #b42318;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-error {
+    color: #f5a3a3;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-divider {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Google Maps UI: prevent SVG icons (close button) from collapsing */
+.gm-style svg,
+.gm-style img {
+  max-width: none;
+  height: auto;
+}
+.gm-ui-hover-effect {
+  opacity: 1;
+}
+.gm-ui-hover-effect > span {
+  background-color: #111 !important;
+}
+
+
+.site-footer {
+  margin-top: 3.5rem;
+  padding: 2.8rem 0 3rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-top: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  .site-footer {
+    background: rgba(18, 15, 13, 0.85);
+  }
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.6rem;
+}
+.footer-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: var(--accent-2);
+  margin-bottom: 0.6rem;
+  font-family: var(--font-display, "Hiragino Mincho ProN", "Yu Mincho", serif);
+}
+.footer-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.footer-link {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.footer-link:hover {
+  color: var(--accent);
+}
+.footer-note {
+  margin-top: 1.6rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
 }

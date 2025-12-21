@@ -2,22 +2,23 @@ import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
-  // 例：高松TOP10（slugがURLになる）
+  // 高松TOP10（slugはURL用）
   const ranking = await prisma.ranking.upsert({
     where: { slug: "top10-takamatsu" },
     create: {
       slug: "top10-takamatsu",
       title: "高松のおすすめうどん10選",
-      description: "自分の好みで選んだ推し店。随時更新。",
+      description:
+        "編集部の目線で選んだおすすめ店。最新情報は各店舗の公式情報をご確認ください。",
       area: "高松",
     },
     update: {},
   });
 
-  // placeId は PlaceCache から拾って貼る（後述）
+  // placeId は PlaceCache を参照して表示する
   const items = [
-    { rank: 1, placeId: "PLACE_ID_1", note: "出汁が最高", recommend: "かけ" },
-    { rank: 2, placeId: "PLACE_ID_2", note: "麺が強い", recommend: "ぶっかけ" },
+    { rank: 1, placeId: "PLACE_ID_1", note: "コシが強くて人気", recommend: "かけ" },
+    { rank: 2, placeId: "PLACE_ID_2", note: "だしの旨味が濃い", recommend: "ぶっかけ" },
   ];
 
   for (const it of items) {
