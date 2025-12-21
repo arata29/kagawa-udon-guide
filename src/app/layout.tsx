@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     description: "香川県のうどん店をランキング・一覧・地図で探せるサイト。",
   },
   verification: {
-    google: "N6R4nEbMem7LfVUNUbkw34bqftzGD0QZn6gP5jggfJI",
+    google: "oMaOgF_g2RrD8nmfFZVzaZ_0RwMs0VriqBIz_oBXPH8",
   },
 };
 
