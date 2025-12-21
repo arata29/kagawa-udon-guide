@@ -1,78 +1,98 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import UdonIcon from "@/components/UdonIcon";
+import type { Metadata } from "next";
 
-/**
- * 自動ランキングのハブページ
- * - 総合ランキング（/rankings/auto）
- * - 市町村別ランキング（/rankings/area/[area]）
- *
- * 前提：
- * - PlaceCache に rating / userRatingCount が入っている（sync:details 実行済み）
- * - PlaceCache.area が埋まっている（同期時に抽出して保存している想定）
- */
+export const metadata: Metadata = {
+  title: "ランキング案内",
+  description:
+    "香川県うどんランキングの案内ページ。総合ランキングとエリア別ランキングへ進めます。",
+};
+
 export default async function RankingsHub() {
-  // rating/件数/area があるデータだけを対象（ランキングとして意味がある）
   const rows = await prisma.placeCache.findMany({
     where: {
       rating: { not: null },
       userRatingCount: { not: null },
-      area: { not: null }, // ★ area が取れてるものだけ
+      area: { not: null },
     },
     select: { area: true },
   });
+  const { _max } = await prisma.placeCache.aggregate({
+    _max: { fetchedAt: true },
+  });
+  const lastSynced = _max.fetchedAt;
+  const lastSyncedLabel = lastSynced
+    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
+    : null;
 
-  // area -> 件数 の集計
   const map = new Map<string, number>();
   for (const r of rows) {
     const a = (r.area ?? "").trim() || "不明";
     map.set(a, (map.get(a) ?? 0) + 1);
   }
 
-  // 件数が多い順に並べる（上位ほどデータが多く、ランキングが見やすい）
   const areas = Array.from(map.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([area, count]) => ({ area, count }));
 
   return (
-    <main className="p-6 max-w-3xl mx-auto">
-      {/* ページタイトル */}
-      <header className="flex items-end justify-between gap-4">
+    <main className="app-shell page-in">
+      <section className="app-hero">
         <div>
-          <h1 className="text-2xl font-bold">自動ランキング</h1>
-          <p className="mt-2 text-sm app-muted">
-            Google評価（★）とレビュー件数から自動作成したランキングです。
+          <p className="app-kicker">Ranking Guide</p>
+          <h1 className="app-title">
+            <UdonIcon className="app-title-icon" />
+            ランキング案内
+          </h1>
+          <p className="app-lead">
+            Google評価とレビュー件数をもとに、香川県のうどん店を自動でランキング化しています。
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="app-button app-button--ghost" href="/list">
+              一覧へ
+            </Link>
+            <Link className="app-button app-button--ghost" href="/map">
+              地図で探す
+            </Link>
+          </div>
         </div>
-
-        <Link className="text-sm underline" href="/">
-          一覧へ
-        </Link>
-      </header>
+        <div className="app-hero-meta">
+          <div className="app-stat">
+            <span className="app-stat-value">{areas.length}</span>
+            <span className="app-stat-label">エリア</span>
+          </div>
+          <div className="app-stat">
+            <span className="app-stat-value">
+              {lastSyncedLabel ?? "未更新"}
+            </span>
+            <span className="app-stat-label">最終更新</span>
+          </div>
+        </div>
+      </section>
 
       <div className="mt-6 space-y-4">
-        {/* 総合ランキング */}
         <section className="app-card">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="font-semibold">総合ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                香川県内（評価データがある店）
+                香川県内の評価データがあるお店を総合順で表示
               </div>
             </div>
 
-            <Link className="text-sm underline whitespace-nowrap" href="/rankings/auto">
+            <Link className="app-button app-button--ghost" href="/rankings/auto">
               見る →
             </Link>
           </div>
         </section>
 
-        {/* 市町村別ランキング */}
         <section className="app-card">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="font-semibold">市町村別ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                DBに保存してある area（市/町/村）で自動分類しています
+                DBに保存された area（市町村）で自動集計
               </div>
             </div>
             <div className="text-xs app-muted whitespace-nowrap">
@@ -82,15 +102,12 @@ export default async function RankingsHub() {
 
           {areas.length === 0 ? (
             <p className="mt-4 text-sm app-muted">
-              対象データがありません。（sync:details 実行後、area が入ると表示されます）
+              対象データがありません。sync:details 実行後に表示されます。
             </p>
           ) : (
             <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               {areas.map((a) => (
-                <li
-                  key={a.area}
-                  className="rounded-xl border px-3 py-2 transition hover:bg-black/5 dark:hover:bg-white/10"
-                >
+                <li key={a.area} className="app-card app-card--mini">
                   <Link
                     className="underline"
                     href={`/rankings/area/${encodeURIComponent(a.area)}`}
@@ -104,11 +121,8 @@ export default async function RankingsHub() {
           )}
         </section>
 
-        {/* 注意書き */}
         <section className="text-xs app-muted">
-          <p>
-            ※評価/件数は Google Places のデータに基づきます。最新化は sync:details の実行タイミングに依存します。
-          </p>
+          <p>※評価/件数は Google Places のデータに基づきます。</p>
         </section>
       </div>
     </main>

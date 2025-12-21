@@ -28,8 +28,10 @@ function createRunLogger() {
   const file = path.join(dir, `sync_details_${stamp}.jsonl`);
   const stream = fs.createWriteStream(file, { flags: "a" });
 
+  cleanupRunLogs(dir, 10); // 古いログを10世代だけ残して削除
+
   const write = (obj: unknown) => {
-    // 1行1JSON（JSONL）: 後で jq / grep / BigQuery で扱いやすい
+    // 1行1JSON（JSONL）
     stream.write(JSON.stringify(obj) + "\n");
   };
 
@@ -39,6 +41,22 @@ function createRunLogger() {
     });
 
   return { file, write, close };
+}
+
+function cleanupRunLogs(dir: string, keep: number) {
+  const files = fs
+    .readdirSync(dir)
+    .filter((name) => /^sync_details_\d{8}_\d{6}\.jsonl$/.test(name))
+    .sort()
+    .reverse();
+
+  for (const name of files.slice(keep)) {
+    try {
+      fs.unlinkSync(path.join(dir, name));
+    } catch {
+      // noop
+    }
+  }
 }
 
 type Details = {
@@ -51,16 +69,16 @@ type Details = {
   googleMapsUri?: string;
   types?: string[];
 
-  // reviews はコストが増えるので、必要なときだけ取得する想定
+  // reviews はコストが増えるため、必要なときだけ取得する想定
   reviews?: { text?: { text?: string } }[];
 };
 
-const USE_REVIEWS = false; // ✅ false にするとレビュー要約を作らない（クレジット節約）
+const USE_REVIEWS = false; // false にするとレビュー要約を作らない（クレジット節約）
 
-async function fetchDetails(placeId: string): Promise<Details> {
+async function fetchDetails(placeId: string): Promise<Details | null> {
   const url = `https://places.googleapis.com/v1/places/${placeId}?languageCode=ja&regionCode=JP`;
 
-  // FieldMask は必要なものだけ（クレジット節約＆速い）
+  // FieldMask は必要なものだけ
   const fieldMaskBase =
     "id,displayName,formattedAddress,location,rating,userRatingCount,googleMapsUri,types";
   const fieldMask = USE_REVIEWS ? `${fieldMaskBase},reviews` : fieldMaskBase;
@@ -73,23 +91,24 @@ async function fetchDetails(placeId: string): Promise<Details> {
     },
   });
 
-  if (!res.ok) throw new Error(`Details ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    throw new Error(`Details ${res.status}: ${await res.text()}`);
+  }
   return (await res.json()) as Details;
 }
 
 /**
- * formattedAddress から市町村（例: 高松市 / 綾川町）をざっくり抽出
- * - 日本語: "香川県高松市..." or "香川県 綾川町..."
+ * formattedAddress から市町村をざっくり抽出
+ * - 日本語: "香川県高松市.." or "香川県 綾川町..."
  * - 英語: "Takamatsu, Kagawa ..."
  */
 function extractArea(address?: string | null) {
   if (!address) return null;
 
-  // 日本語（香川県高松市 / 香川県 綾川町 など）
   const jp = address.match(/香川県\s*([^\d\s,]+?(?:市|町|村))/);
   if (jp?.[1]) return jp[1];
 
-  // 英語っぽい（Takamatsu, Kagawa ...）
   const en = address.match(/\b([^,]+)\s*,\s*Kagawa\b/i);
   if (en?.[1]) return en[1].trim();
 
@@ -97,8 +116,8 @@ function extractArea(address?: string | null) {
 }
 
 /**
- * AIなし（無料）で “それっぽく” まとめる簡易レビュー要約
- * - 形態素解析とかは使わず、キーワード辞書で「言及が多い観点」を箇条書きにする
+ * AIなしで“それっぽく”まとめる簡易レビュー要約
+ * - 形態素解析は使わず、キーワード辞書で言及が多い観点を箇条書きにする
  */
 function summarizeReviewsJaFree(reviews: string[]) {
   const cleaned = reviews
@@ -111,12 +130,12 @@ function summarizeReviewsJaFree(reviews: string[]) {
 
   const aspects: { key: string; label: string; keys: RegExp[] }[] = [
     { key: "noodle", label: "麺（コシ/食感）", keys: [/麺/, /コシ/, /もちもち/, /つるつる/, /食感/] },
-    { key: "dashi", label: "出汁・つゆ", keys: [/出汁|だし/, /つゆ/, /いりこ/, /スープ/] },
+    { key: "dashi", label: "出汁・つゆ", keys: [/出汁|だし/, /つゆ/, /だし味/, /スープ/] },
     { key: "price", label: "値段・コスパ", keys: [/安い/, /高い/, /コスパ/, /値段/, /価格/, /料金/] },
-    { key: "volume", label: "量（ボリューム）", keys: [/量/, /ボリューム/, /大盛/, /小/, /並/] },
+    { key: "volume", label: "量（ボリューム）", keys: [/量/, /ボリューム/, /大盛/, /普通/, /並/] },
     { key: "service", label: "接客・雰囲気", keys: [/接客/, /店員/, /対応/, /雰囲気/, /店内/] },
-    { key: "queue", label: "混雑・待ち", keys: [/行列/, /混雑/, /待ち/, /並ぶ/, /回転/] },
-    { key: "parking", label: "駐車場・アクセス", keys: [/駐車場/, /アクセス/, /駅/, /近い/, /遠い/] },
+    { key: "queue", label: "混雑・待ち時間", keys: [/行列/, /混雑/, /待ち/, /並ぶ/, /回転/] },
+    { key: "parking", label: "駐車場・アクセス", keys: [/駐車場/, /アクセス/, /近い/, /遠い/] },
   ];
 
   const POS = [/美味しい/, /うまい/, /最高/, /良い/, /満足/, /おすすめ/, /好き/, /丁寧/, /親切/];
@@ -152,7 +171,7 @@ function summarizeReviewsJaFree(reviews: string[]) {
     let tone = "言及が多い";
     if (s.pos > s.neg && s.pos >= 2) tone = "好意的な声が多い";
     if (s.neg > s.pos && s.neg >= 2) tone = "不満の声もある";
-    bullets.push(`- ${s.label}：${tone}`);
+    bullets.push(`- ${s.label}: ${tone}`);
   }
 
   return bullets.slice(0, 6).join("\n");
@@ -164,11 +183,11 @@ async function main() {
   const logger = createRunLogger();
   console.log("log file:", logger.file);
 
-  // ✅ ここは「負荷とクレジット」を見て調整
+  // ここは「負荷とクレジット」を見て調整
   const TAKE = Number(process.env.SYNC_DETAILS_TAKE ?? "1000");
   const SLEEP_MS = Number(process.env.SYNC_DETAILS_SLEEP_MS ?? "120");
 
-  // 対象：最新に見えたものから（isHidden=false を優先）
+  // 対象は最新に見えたものから（isHidden=false を優先）
   const targets = await prisma.place.findMany({
     where: { isHidden: false },
     orderBy: { lastSeenAt: "desc" },
@@ -180,15 +199,29 @@ async function main() {
   let ok = 0;
   let ng = 0;
   let skipped = 0;
+  let invalid = 0;
   let warnTentative = 0;
 
-  // ✅ セッションプーラーで max clients に当たりやすいので、直列実行＋sleepで圧を下げる
+  // max clients に当たりやすいので、直列実行＋sleepで圧を下げる
   for (let i = 0; i < targets.length; i++) {
     const t = targets[i];
     const placeId = t.placeId;
 
     try {
       const d = await fetchDetails(placeId);
+      if (!d) {
+        invalid++;
+        logger.write({
+          level: "WARN",
+          event: "SKIP_INVALID_PLACE_ID",
+          ts: now.toISOString(),
+          idx: i + 1,
+          total: targets.length,
+          placeId,
+        });
+        await sleep(SLEEP_MS);
+        continue;
+      }
 
       const name = d.displayName?.text ?? null;
       const addr = d.formattedAddress ?? null;
@@ -201,9 +234,7 @@ async function main() {
         address: addr,
       });
 
-      // ✅ ログ（共通）
-      // - matchedInclude / matchedExclude を必ず残す
-      // - reasons も残す
+      // ログ: matchedInclude / matchedExclude / reasons
       const baseLog = {
         ts: now.toISOString(),
         idx: i + 1,
@@ -218,15 +249,14 @@ async function main() {
         classify: {
           isUdon: c.isUdon,
           reasons: c.reasons ?? [],
-          matchedInclude: (c as any).matchedInclude ?? [],
-          matchedExclude: (c as any).matchedExclude ?? [],
+          matchedInclude: c.matchedInclude ?? [],
+          matchedExclude: c.matchedExclude ?? [],
         },
       };
 
       if (!c.isUdon) {
         skipped++;
 
-        // ✅ ここが重要：混入/取りこぼし調整用のログ
         console.log("skip(non-udon):", placeId, name ?? "(no name)", c.reasons.join(", "));
         logger.write({ level: "INFO", event: "SKIP_NON_UDON", ...baseLog });
 
@@ -240,8 +270,7 @@ async function main() {
         continue;
       }
 
-      // ✅ include 無しで通ったやつを WARN にする（混入がここに集まる）
-      const matchedInclude = (c as any).matchedInclude as string[] | undefined;
+      const matchedInclude = c.matchedInclude;
       const hasInclude = Array.isArray(matchedInclude) && matchedInclude.length > 0;
 
       if (!hasInclude) {
@@ -251,7 +280,7 @@ async function main() {
         logger.write({ level: "INFO", event: "ALLOW_UDON", ...baseLog });
       }
 
-      // reviews → 箇条書き要約（無料版）
+      // reviews -> 箇条書き要約（無料版）
       const reviewTexts =
         USE_REVIEWS
           ? ((d.reviews?.map((r) => r.text?.text).filter(Boolean) as string[]) ?? [])
@@ -260,12 +289,12 @@ async function main() {
       const reviewSummary =
         reviewTexts.length > 0 ? summarizeReviewsJaFree(reviewTexts) : null;
 
-      // ✅ isHidden を戻す（既にfalseでもOK）
+      // isHidden を戻す（既にfalseでもOK）
       await prisma.place
         .update({ where: { placeId }, data: { isHidden: false } })
         .catch(() => {});
 
-      // cache upsert（詳細情報反映）
+      // cache upsert（詳細反映）
       await prisma.placeCache.upsert({
         where: { placeId },
         create: {
@@ -303,7 +332,6 @@ async function main() {
       ng++;
       console.error("failed:", placeId, e);
 
-      // ✅ エラーも JSONL に残す（後で再実行対象を抽出できる）
       logger.write({
         level: "ERROR",
         event: "FAILED",
@@ -321,6 +349,7 @@ async function main() {
     ok,
     ng,
     skipped,
+    invalid,
     warnTentative,
     total: targets.length,
     logFile: logger.file,
@@ -338,7 +367,7 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    // ✅ DB切断時に落ちることがあるので、握りつぶして終了させる
+    // DB切断時に落ちることがあるため握りつぶして終了
     try {
       await prisma.$disconnect();
     } catch {
