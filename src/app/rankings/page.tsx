@@ -4,7 +4,7 @@ import UdonIcon from "@/components/UdonIcon";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "ランキング案内",
+  title: "ランキング一覧",
   description:
     "香川県うどんランキングの案内ページ。総合ランキングとエリア別ランキングへ進めます。",
 };
@@ -28,7 +28,7 @@ export default async function RankingsHub() {
 
   const map = new Map<string, number>();
   for (const r of rows) {
-    const a = (r.area ?? "").trim() || "不明";
+    const a = (r.area ?? "").trim() || "その他";
     map.set(a, (map.get(a) ?? 0) + 1);
   }
 
@@ -43,10 +43,10 @@ export default async function RankingsHub() {
           <p className="app-kicker">Ranking Guide</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            ランキング案内
+            ランキング一覧
           </h1>
           <p className="app-lead">
-            Google評価とレビュー件数をもとに、香川県のうどん店を自動でランキング化しています。
+            Googleの評価とレビュー件数をもとに、香川県のうどん店をランキング形式で紹介しています。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="app-button app-button--ghost" href="/list">
@@ -77,11 +77,11 @@ export default async function RankingsHub() {
             <div>
               <div className="font-semibold">総合ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                香川県内の評価データがあるお店を総合順で表示
+                香川県全体の評価データをもとに、総合ランキングを作成しています。
               </div>
             </div>
 
-            <Link className="app-button app-button--ghost" href="/rankings/auto">
+            <Link className="app-button app-button--ghost" href="/">
               見る →
             </Link>
           </div>
@@ -90,19 +90,19 @@ export default async function RankingsHub() {
         <section className="app-card">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="font-semibold">市町村別ランキング</div>
+              <div className="font-semibold">エリア別ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                DBに保存された area（市町村）で自動集計
+                DBに登録された area ごとのランキング一覧です。
               </div>
             </div>
             <div className="text-xs app-muted whitespace-nowrap">
-              {areas.length}カテゴリ
+              {areas.length}エリア
             </div>
           </div>
 
           {areas.length === 0 ? (
             <p className="mt-4 text-sm app-muted">
-              対象データがありません。sync:details 実行後に表示されます。
+              対象データがありません。sync:details 実行後、area が入ると表示されます。
             </p>
           ) : (
             <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
