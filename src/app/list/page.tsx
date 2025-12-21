@@ -6,7 +6,7 @@ import UdonIcon from "@/components/UdonIcon";
 export const metadata: Metadata = {
   title: "香川県うどん店一覧",
   description:
-    "香川県のうどん店を一覧で検索。評価やレビュー件数で絞り込みができます。",
+    "香川県内のうどん店を一覧で紹介。エリア・評価・レビュー件数で絞り込みできます。",
 };
 
 type SP = {
@@ -80,7 +80,7 @@ export default async function ListPage({
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "香川県うどん店一覧",
-    itemListElement: places.slice(0, 30).map((p, idx) => ({
+    itemListElement: places.slice(0, take).map((p, idx) => ({
       "@type": "ListItem",
       position: idx + 1,
       name: p.name,
@@ -153,7 +153,7 @@ export default async function ListPage({
       </section>
 
       <section className="app-card mt-6">
-        <form className="grid gap-3" action="/list" method="get">
+        <form className="filter-form grid gap-3" action="/list" method="get">
           <input
             name="q"
             defaultValue={q}
@@ -167,7 +167,7 @@ export default async function ListPage({
             </select>
 
             <select name="area" defaultValue={area}>
-              <option value="">エリア（すべて）</option>
+              <option value="">エリア（全て）</option>
               {areas.map((a) => (
                 <option key={a} value={a}>
                   {a}
@@ -197,7 +197,7 @@ export default async function ListPage({
           <div className="flex flex-col sm:flex-row gap-2">
             <input type="hidden" name="page" value="1" />
             <button type="submit" className="app-button">
-              検索する
+              検索
             </button>
             {(q || area || minRating > 0 || minReviews > 0) && (
               <Link href="/list?page=1" className="app-button app-button--ghost">
@@ -242,7 +242,7 @@ export default async function ListPage({
                     <div className="mt-3 flex flex-wrap gap-2">
                       {p.rating != null && (
                         <span className="app-badge app-badge--accent">
-                          ★ {p.rating}
+                          ★{p.rating}
                         </span>
                       )}
                       {p.userRatingCount != null && (

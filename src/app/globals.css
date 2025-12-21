@@ -1,5 +1,11 @@
 ﻿@import "tailwindcss";
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 :root {
   --bg-0: #fdf6e9;
   --bg-1: #f7ead3;
@@ -119,6 +125,23 @@ textarea {
 input::placeholder,
 textarea::placeholder {
   color: rgba(90, 85, 78, 0.7);
+}
+
+.filter-form input,
+.filter-form select,
+.filter-form textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.filter-form .app-button {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .filter-form .app-button {
+    width: auto;
+  }
 }
 
 .site-header {
