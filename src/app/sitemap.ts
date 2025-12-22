@@ -1,69 +1,70 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
-
-const baseUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+import { siteUrl } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
+  const [{ _max }, areas] = await Promise.all([
+    prisma.placeCache.aggregate({ _max: { fetchedAt: true } }),
+    prisma.placeCache.findMany({
+      where: { area: { not: null } },
+      distinct: ["area"],
+      select: { area: true },
+    }),
+  ]);
 
-  const areas = await prisma.placeCache.findMany({
-    where: { area: { not: null } },
-    distinct: ["area"],
-    select: { area: true },
-  });
+  const lastFetchedAt = _max.fetchedAt ?? new Date();
+  const staticLastModified = new Date("2025-12-22");
 
   const areaEntries = areas
     .map((a) => (a.area ?? "").trim())
     .filter(Boolean)
     .map((area) => ({
-      url: `${baseUrl}/rankings/area/${encodeURIComponent(area)}`,
-      lastModified: now,
+      url: `${siteUrl}/rankings/area/${encodeURIComponent(area)}`,
+      lastModified: lastFetchedAt,
       changeFrequency: "weekly" as const,
       priority: 0.6,
     }));
 
   return [
     {
-      url: `${baseUrl}/`,
-      lastModified: now,
+      url: `${siteUrl}/`,
+      lastModified: lastFetchedAt,
       changeFrequency: "daily",
       priority: 1,
     },
     {
-      url: `${baseUrl}/list`,
-      lastModified: now,
+      url: `${siteUrl}/list`,
+      lastModified: lastFetchedAt,
       changeFrequency: "daily",
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/rankings`,
-      lastModified: now,
+      url: `${siteUrl}/rankings`,
+      lastModified: lastFetchedAt,
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/map`,
-      lastModified: now,
+      url: `${siteUrl}/map`,
+      lastModified: lastFetchedAt,
       changeFrequency: "weekly",
       priority: 0.6,
     },
     {
-      url: `${baseUrl}/privacy`,
-      lastModified: now,
+      url: `${siteUrl}/privacy`,
+      lastModified: staticLastModified,
       changeFrequency: "monthly",
       priority: 0.3,
     },
     {
-      url: `${baseUrl}/terms`,
-      lastModified: now,
+      url: `${siteUrl}/terms`,
+      lastModified: staticLastModified,
       changeFrequency: "monthly",
       priority: 0.3,
     },
     {
-      url: `${baseUrl}/contact`,
-      lastModified: now,
+      url: `${siteUrl}/contact`,
+      lastModified: staticLastModified,
       changeFrequency: "monthly",
       priority: 0.3,
     },

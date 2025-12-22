@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MarkerClusterer } from "@googlemaps/markerclusterer";
@@ -29,7 +29,8 @@ function loadGoogleMaps(apiKey: string) {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Google Maps の読み込みに失敗しました。"));
+    script.onerror = () =>
+      reject(new Error("Google Maps の読み込みに失敗しました。"));
     document.head.appendChild(script);
   });
 
@@ -48,9 +49,9 @@ function buildClusterIcon(count: number) {
   const color = count < 10 ? "#c96a2a" : count < 30 ? "#8a4a22" : "#4f2b14";
   const ring = "rgba(255, 248, 236, 0.9)";
   const svg = `
-    <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${size}\" height=\"${size}\" viewBox=\"0 0 ${size} ${size}\">
-      <circle cx=\"${size / 2}\" cy=\"${size / 2}\" r=\"${size / 2}\" fill=\"${ring}\"/>
-      <circle cx=\"${size / 2}\" cy=\"${size / 2}\" r=\"${size / 2 - 4}\" fill=\"${color}\"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="${ring}"/>
+      <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 4}" fill="${color}"/>
     </svg>
   `;
   return {
@@ -62,6 +63,7 @@ function buildClusterIcon(count: number) {
 
 export default function MapClient({ places }: { places: PlacePin[] }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
@@ -70,6 +72,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [area, setArea] = useState<string>("");
+  const [sort, setSort] = useState<"reviews" | "rating">("reviews");
   const [minRating, setMinRating] = useState<string>("");
   const [minReviews, setMinReviews] = useState<string>("");
   const [sheetExpanded, setSheetExpanded] = useState<boolean>(false);
@@ -105,14 +108,64 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
       );
     }
 
-    return filtered;
-  }, [places, area, minRating, minReviews]);
+    const sorted = [...filtered].sort((a, b) => {
+      const ratingA = a.rating ?? 0;
+      const ratingB = b.rating ?? 0;
+      const reviewsA = a.userRatingCount ?? 0;
+      const reviewsB = b.userRatingCount ?? 0;
+      if (sort === "rating") {
+        if (ratingB !== ratingA) return ratingB - ratingA;
+        if (reviewsB !== reviewsA) return reviewsB - reviewsA;
+      } else {
+        if (reviewsB !== reviewsA) return reviewsB - reviewsA;
+        if (ratingB !== ratingA) return ratingB - ratingA;
+      }
+      return (a.name ?? "").localeCompare(b.name ?? "", "ja");
+    });
+
+    return sorted;
+  }, [places, area, minRating, minReviews, sort]);
 
   useEffect(() => {
     if (!selectedId) return;
     const stillExists = filteredPlaces.some((p) => p.placeId === selectedId);
     if (!stillExists) setSelectedId(null);
   }, [filteredPlaces, selectedId]);
+
+  useEffect(() => {
+    if (!sheetExpanded) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSheetExpanded(false);
+      }
+      if (event.key === "Tab" && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus();
+            event.preventDefault();
+          }
+        } else if (document.activeElement === last) {
+          first.focus();
+          event.preventDefault();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    const focusable = panelRef.current?.querySelectorAll<HTMLElement>(
+      "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"
+    );
+    const first = focusable?.[0];
+    if (first) {
+      first.focus();
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sheetExpanded]);
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -196,32 +249,33 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
     const marker = markersRef.current.get(place.placeId);
     if (!map || !infoWindow || !marker) return;
 
-    const ratingText = place.rating != null ? `評価 ${place.rating}` : "評価なし";
+    const ratingText =
+      place.rating != null ? `評価 ${place.rating}` : "評価なし";
     const reviewText =
       place.userRatingCount != null
-        ? `口コミ ${place.userRatingCount}件`
-        : "口コミなし";
+        ? `レビュー${place.userRatingCount}件`
+        : "レビューなし";
     const openUrl = buildMapsUrl(place);
 
     infoWindow.setContent(
-      `<div style=\"max-width:240px;background:#fffaf1;border-radius:14px;padding:8px 10px 10px;border:1px solid rgba(201,106,42,0.25);box-shadow:0 12px 30px rgba(90,60,40,0.18);font-size:12px;line-height:1.5;\">
-        <div style=\"font-size:13px;font-weight:600;color:#1f2a2e;margin-bottom:4px;word-break:break-word;\">
+      `<div style="max-width:240px;background:#fffaf1;border-radius:14px;padding:8px 10px 10px;border:1px solid rgba(201,106,42,0.25);box-shadow:0 12px 30px rgba(90,60,40,0.18);font-size:12px;line-height:1.5;">
+        <div style="font-size:13px;font-weight:600;color:#1f2a2e;margin-bottom:4px;word-break:break-word;">
           ${place.name}
         </div>
         ${
           place.address
-            ? `<div style=\"color:#5c6a6d;margin-bottom:6px;word-break:break-word;\">${place.address}</div>`
+            ? `<div style="color:#5c6a6d;margin-bottom:6px;word-break:break-word;">${place.address}</div>`
             : ""
         }
-        <div style=\"display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;\">
-          <span style=\"display:inline-flex;align-items:center;border-radius:999px;background:#c96a2a;color:#fff7ee;padding:2px 8px;font-size:11px;\">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="display:inline-flex;align-items:center;border-radius:999px;background:#c96a2a;color:#fff7ee;padding:2px 8px;font-size:11px;">
             ${ratingText}
           </span>
-          <span style=\"display:inline-flex;align-items:center;border-radius:999px;background:rgba(201,106,42,0.16);color:#2f4d4f;padding:2px 8px;font-size:11px;\">
+          <span style="display:inline-flex;align-items:center;border-radius:999px;background:rgba(201,106,42,0.16);color:#2f4d4f;padding:2px 8px;font-size:11px;">
             ${reviewText}
           </span>
         </div>
-        <a href=\"${openUrl}\" target=\"_blank\" rel=\"noreferrer\" style=\"color:#1f6f78;text-decoration:underline;\">
+        <a href="${openUrl}" target="_blank" rel="noreferrer" style="color:#1f6f78;text-decoration:underline;">
           Googleマップを開く
         </a>
       </div>`
@@ -241,7 +295,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
 
   const handleLocate = () => {
     if (!navigator.geolocation) {
-      setError("このブラウザでは現在地を取得できません。");
+      setError("このブラウザでは現在地取得ができません。");
       return;
     }
 
@@ -249,6 +303,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocating(false);
+        setSheetExpanded(false);
         const map = mapInstanceRef.current;
         if (!map) return;
         const position = {
@@ -276,10 +331,22 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
 
   return (
     <div className="map-layout">
+      {sheetExpanded && (
+        <button
+          type="button"
+          className="map-backdrop"
+          aria-label="閉じる"
+          onClick={() => setSheetExpanded(false)}
+        />
+      )}
       <div
         className={
           sheetExpanded ? "map-panel map-panel--expanded" : "map-panel"
         }
+        ref={panelRef}
+        role={sheetExpanded ? "dialog" : undefined}
+        aria-modal={sheetExpanded ? "true" : undefined}
+        aria-label={sheetExpanded ? "フィルター" : undefined}
       >
         <div className="map-panel-header">
           <div className="map-panel-grip" />
@@ -292,7 +359,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
               className="map-panel-toggle underline"
               onClick={() => setSheetExpanded((prev) => !prev)}
             >
-              {sheetExpanded ? "縮小" : "拡大"}
+              {sheetExpanded ? "閉じる" : "フィルター"}
             </button>
           </div>
         </div>
@@ -311,6 +378,10 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
 
           <div className="app-card app-card--mini mt-3">
             <div className="grid gap-2">
+              <select value={sort} onChange={(event) => setSort(event.target.value as "reviews" | "rating")}>
+                <option value="reviews">レビュー件数順</option>
+                <option value="rating">評価順</option>
+              </select>
               <select value={area} onChange={(event) => setArea(event.target.value)}>
                 <option value="">エリア（すべて）</option>
                 {areaOptions.map((value) => (
@@ -332,18 +403,19 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
                   type="number"
                   min={0}
                   step={1}
-                  placeholder="最低口コミ数"
+                  placeholder="最低レビュー数"
                   value={minReviews}
                   onChange={(event) => setMinReviews(event.target.value)}
                 />
               </div>
             </div>
-            {(area || minRating || minReviews) && (
+            {(area || minRating || minReviews || sort !== "reviews") && (
               <div className="mt-2 text-xs app-muted">
                 <button
                   type="button"
                   className="underline"
                   onClick={() => {
+                    setSort("reviews");
                     setArea("");
                     setMinRating("");
                     setMinReviews("");
@@ -383,7 +455,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
                       }
                       onClick={() => {
                         setSelectedId(p.placeId);
-                        setSheetExpanded(true);
+                        setSheetExpanded(false);
                         openInfoWindow(p);
                       }}
                     >
@@ -397,7 +469,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
                         <span className="app-badge app-badge--accent">
                           評価 {ratingText}
                         </span>
-                        <span className="app-badge">口コミ {reviewText}</span>
+                        <span className="app-badge">レビュー {reviewText}</span>
                         <a
                           href={openMapsUrl}
                           target="_blank"
@@ -416,6 +488,13 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
         </div>
       </div>
       <div ref={mapRef} className="app-map" />
+      <button
+        type="button"
+        className="map-fab app-button"
+        onClick={() => setSheetExpanded(true)}
+      >
+        フィルター
+      </button>
     </div>
   );
 }

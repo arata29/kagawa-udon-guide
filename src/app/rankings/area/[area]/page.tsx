@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
 import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
+import { siteUrl } from "@/lib/site";
 
 function safeDecode(value: string) {
   try {
@@ -22,6 +23,9 @@ export async function generateMetadata(props: {
   return {
     title: `${label}のうどんランキング`,
     description: `${label}のうどん店を評価とレビュー件数から自動ランキング。香川県の人気店をチェック。`,
+    alternates: {
+      canonical: `${siteUrl}/rankings/area/${encodeURIComponent(area)}`,
+    },
   };
 }
 
@@ -108,6 +112,15 @@ export default async function AreaRanking(props: {
 
   const C = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
   const m = 50;
+  
+  const { _max } = await prisma.placeCache.aggregate({
+    _max: { fetchedAt: true },
+  });
+  const lastSynced = _max.fetchedAt;
+  const lastSyncedLabel = lastSynced
+    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
+    : null;
+
 
   const ranked = rows
     .map((r) => {
@@ -155,12 +168,35 @@ export default async function AreaRanking(props: {
             )}&z=16`),
     })),
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ホーム", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "ランキング一覧",
+        item: `${siteUrl}/rankings`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: `${area}のランキング`,
+        item: `${siteUrl}/rankings/area/${encodeURIComponent(area)}`,
+      },
+    ],
+  };
 
   return (
     <main className="app-shell page-in">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <section className="app-hero">
         <div>
@@ -171,6 +207,7 @@ export default async function AreaRanking(props: {
           </h1>
           <p className="app-lead">
             評価とレビュー件数をもとにベイズ平均でランキング化しています。
+            エリア内の人気傾向がわかるので、初訪問でも選びやすいです。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="app-button app-button--ghost" href="/rankings">
@@ -182,20 +219,14 @@ export default async function AreaRanking(props: {
           <div className="app-stat">
             <span className="app-stat-value">{ranked.length}</span>
             <span className="app-stat-label">店舗</span>
-          </div>
+          </div>          
           <div className="app-stat">
-            <span className="app-stat-value">m={m}</span>
-            <span className="app-stat-label">基準</span>
+            <span className="app-stat-value">{lastSyncedLabel ?? "未更新"}</span>
+            <span className="app-stat-label">最終更新</span>
           </div>
         </div>
       </section>
 
-      <section className="app-card mt-6">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="app-badge app-badge--soft">平均C={C.toFixed(2)}</span>
-          <span className="app-muted">スコアはベイズ平均で算出</span>
-        </div>
-      </section>
 
       <div className="mt-4 text-xs app-muted">
         表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}件/ページ）

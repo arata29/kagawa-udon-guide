@@ -1,15 +1,35 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
+import { cache } from "react";
 import UdonIcon from "@/components/UdonIcon";
+import { siteUrl } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "香川県うどん店一覧",
-  description:
-    "香川県内のうどん店を一覧で紹介。エリア・評価・レビュー件数で絞り込みできます。",
+const listTitle = "香川県うどん店一覧";
+const listDescription =
+  "香川県内のうどん店を一覧で紹介。エリア・評価・レビュー件数で絞り込みできます。";
+const listPageSize = 30;
+const getTotalCount = cache(async () => prisma.placeCache.count());
+
+type RawSearchParams = {
+  q?: string | string[];
+  page?: string | string[];
+  sort?: string | string[];
+  minRating?: string | string[];
+  minReviews?: string | string[];
+  area?: string | string[];
 };
 
-type SP = {
+type ParsedSearchParams = {
+  q: string;
+  page: number;
+  sort: "rating" | "reviews";
+  minRating: number;
+  minReviews: number;
+  area: string;
+};
+
+type HrefParams = {
   q?: string;
   page?: string;
   sort?: "rating" | "reviews";
@@ -18,21 +38,72 @@ type SP = {
   area?: string;
 };
 
+const asString = (value?: string | string[]) =>
+  Array.isArray(value) ? value[0] ?? "" : value ?? "";
+
+const parseSearchParams = (sp: RawSearchParams = {}): ParsedSearchParams => {
+  const q = asString(sp.q).trim();
+  const page = Math.max(1, Number(asString(sp.page)) || 1);
+  const sort = asString(sp.sort) === "rating" ? "rating" : "reviews";
+  const minRating = Math.max(0, Number(asString(sp.minRating)) || 0);
+  const minReviews = Math.max(0, Number(asString(sp.minReviews)) || 0);
+  const area = asString(sp.area).trim();
+  return { q, page, sort, minRating, minReviews, area };
+};
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<RawSearchParams>;
+}): Promise<Metadata> {
+  const { q, page, sort, minRating, minReviews, area } =
+    parseSearchParams(await searchParams);
+  const hasFilters =
+    Boolean(q) ||
+    Boolean(area) ||
+    minRating > 0 ||
+    minReviews > 0 ||
+    sort !== "reviews";
+  const canonical = hasFilters
+    ? "/list"
+    : page > 1
+      ? `/list?page=${page}`
+      : "/list";
+  let pagination: Metadata["pagination"] | undefined;
+  if (!hasFilters) {
+    const total = await getTotalCount();
+    const totalPages = Math.max(1, Math.ceil(total / listPageSize));
+    pagination = {
+      previous: page > 1 ? `${siteUrl}/list?page=${page - 1}` : null,
+      next: page < totalPages ? `${siteUrl}/list?page=${page + 1}` : null,
+    };
+  }
+
+  return {
+    title: listTitle,
+    description: listDescription,
+    alternates: { canonical },
+    ...(pagination ? { pagination } : {}),
+    ...(hasFilters ? { robots: { index: false, follow: true } } : {}),
+  };
+}
+
 export default async function ListPage({
   searchParams,
 }: {
-  searchParams: Promise<SP>;
+  searchParams: Promise<RawSearchParams>;
 }) {
-  const sp = await searchParams;
+  const { q, page, sort, minRating, minReviews, area } = parseSearchParams(
+    await searchParams
+  );
+  const hasFilters =
+    Boolean(q) ||
+    Boolean(area) ||
+    minRating > 0 ||
+    minReviews > 0 ||
+    sort !== "reviews";
 
-  const q = (sp.q ?? "").trim();
-  const page = Math.max(1, Number(sp.page ?? "1") || 1);
-  const sort = sp.sort ?? "reviews";
-  const minRating = Math.max(0, Number(sp.minRating ?? "0") || 0);
-  const minReviews = Math.max(0, Number(sp.minReviews ?? "0") || 0);
-  const area = (sp.area ?? "").trim();
-
-  const take = 30;
+  const take = listPageSize;
   const skip = (page - 1) * take;
 
   const where = {
@@ -60,8 +131,11 @@ export default async function ListPage({
           { fetchedAt: "desc" as const },
         ];
 
+  const totalPromise = hasFilters
+    ? prisma.placeCache.count({ where })
+    : getTotalCount();
   const [total, places, areaRows] = await Promise.all([
-    prisma.placeCache.count({ where }),
+    totalPromise,
     prisma.placeCache.findMany({ where, orderBy, take, skip }),
     prisma.placeCache.findMany({
       where: { area: { not: null } },
@@ -93,8 +167,21 @@ export default async function ListPage({
             )}&z=16`),
     })),
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ホーム", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "一覧",
+        item: `${siteUrl}/list`,
+      },
+    ],
+  };
 
-  const mkHref = (next: Partial<SP>) => {
+  const mkHref = (next: Partial<HrefParams>) => {
     const params = new URLSearchParams();
     const nq = next.q ?? q;
     const np = next.page ?? String(page);
@@ -118,6 +205,10 @@ export default async function ListPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <section className="app-hero">
         <div>

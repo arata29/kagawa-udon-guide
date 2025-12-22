@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import UdonIcon from "@/components/UdonIcon";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const sans = Noto_Sans_JP({
@@ -17,15 +18,9 @@ const display = Noto_Serif_JP({
   variable: "--font-display",
 });
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000");
-
 const siteTitle = "香川県うどんランキング";
 const siteDescription =
-  "香川県のうどん店をランキング・一覧・地図で探せるサイト。";
+  "香川県のうどん店をランキング・一覧・地図で探せる情報サイト。評価とレビュー件数から人気店を比較できます。";
 
 export const metadata: Metadata = {
   title: {
@@ -33,6 +28,19 @@ export const metadata: Metadata = {
     template: `%s | ${siteTitle}`,
   },
   description: siteDescription,
+  icons: {
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+    apple: [
+      { url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+  },
   metadataBase: new URL(siteUrl),
   openGraph: {
     type: "website",
@@ -40,6 +48,14 @@ export const metadata: Metadata = {
     title: siteTitle,
     description: siteDescription,
     siteName: siteTitle,
+    images: [
+      {
+        url: "/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: siteTitle,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -143,7 +159,7 @@ export default function RootLayout({
                     一覧
                   </Link>
                   <Link className="footer-link" href="/map">
-                    地図
+                    マップ
                   </Link>
                 </div>
               </div>

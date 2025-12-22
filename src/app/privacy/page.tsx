@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "プライバシーポリシー",
@@ -7,8 +8,26 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ホーム", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "プライバシーポリシー",
+        item: `${siteUrl}/privacy`,
+      },
+    ],
+  };
+
   return (
     <main className="app-shell page-in">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Privacy</p>

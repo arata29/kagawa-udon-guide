@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "利用規約",
@@ -7,8 +8,26 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage() {
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ホーム", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "利用規約",
+        item: `${siteUrl}/terms`,
+      },
+    ],
+  };
+
   return (
     <main className="app-shell page-in">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Terms</p>
