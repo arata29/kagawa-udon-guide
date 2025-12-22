@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import UdonIcon from "@/components/UdonIcon";
 import type { Metadata } from "next";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "ランキング一覧",
@@ -35,9 +36,26 @@ export default async function RankingsHub() {
   const areas = Array.from(map.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([area, count]) => ({ area, count }));
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ホーム", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "ランキング一覧",
+        item: `${siteUrl}/rankings`,
+      },
+    ],
+  };
 
   return (
     <main className="app-shell page-in">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Ranking Guide</p>
@@ -47,6 +65,9 @@ export default async function RankingsHub() {
           </h1>
           <p className="app-lead">
             Googleの評価とレビュー件数をもとに、香川県のうどん店をランキング形式で紹介しています。
+            総合は全体の傾向、エリア別は近場の名店探しに便利です。
+            <br></br>
+            ※スコアは評価とレビュー件数をもとにベイズ平均で算出しています。
           </p>
         </div>
         <div className="app-hero-meta">
@@ -84,7 +105,8 @@ export default async function RankingsHub() {
             <div>
               <div className="font-semibold">エリア別ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                自動取得したうどん屋を地域別に集計した、ランキング一覧です。
+                地域ごとの傾向を見やすくまとめています。
+                同じエリア内で比較できるので、周遊や食べ歩きの計画に役立ちます。
               </div>
             </div>
             <div className="text-xs app-muted whitespace-nowrap">

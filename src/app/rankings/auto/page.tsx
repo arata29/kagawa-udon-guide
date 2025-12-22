@@ -3,11 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
 import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "香川県うどん総合ランキング",
   description:
-    "Googleの評価とレビュー件数をもとに香川県のうどん店を自動ランキング。",
+    "Googleの評価とレビュー件数をもとに、香川県のうどん店を自動ランキング。",
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default async function AutoRanking({
@@ -113,7 +117,7 @@ export default async function AutoRanking({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "香川県うどん自動ランキング",
+    name: "香川県 うどん自動ランキング",
     itemListElement: paged.map((r, idx) => ({
       "@type": "ListItem",
       position: startIndex + idx + 1,
@@ -127,12 +131,28 @@ export default async function AutoRanking({
             )}&z=16`),
     })),
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "総合ランキング",
+        item: siteUrl,
+      },
+    ],
+  };
 
   return (
     <main className="app-shell page-in">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <section className="app-hero">
         <div>
@@ -142,7 +162,7 @@ export default async function AutoRanking({
             総合ランキング
           </h1>
           <p className="app-lead">
-            Googleの評価とレビュー件数からベイズ平均で算出しています。
+            香川県のうどん店を評価とレビュー件数で総合ランキング。人気店を手早く比較できます。
           </p>
         </div>
         <div className="app-hero-meta">
@@ -157,16 +177,10 @@ export default async function AutoRanking({
         </div>
       </section>
 
-      <section className="app-card mt-6">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="app-badge app-badge--soft">m={m}</span>
-          <span className="app-badge app-badge--soft">平均C={C.toFixed(2)}</span>
-          <span className="app-muted">スコアはベイズ平均で算出</span>
-        </div>
-      </section>
 
       <div className="mt-4 text-xs app-muted">
-        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}件/ページ）
+        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}
+        件/ページ）
       </div>
 
       <ol className="mt-4 space-y-4">
@@ -198,7 +212,7 @@ export default async function AutoRanking({
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <span className="app-badge app-badge--accent">
-                      ★ {r.rating}
+                      ★{r.rating}
                     </span>
                     <span className="app-badge app-badge--soft">
                       {r.userRatingCount}件

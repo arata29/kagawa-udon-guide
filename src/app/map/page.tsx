@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import MapClient from "./MapClient";
 import UdonIcon from "@/components/UdonIcon";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "香川県うどんマップ",
-  description: "香川県内のうどん店を地図とリストで探せます。",
+  description:
+    "香川県のうどん店を地図で探せるページ。店名・評価・レビュー件数を表示します。",
 };
 
 export default async function MapPage() {
@@ -31,9 +33,21 @@ export default async function MapPage() {
     (place): place is typeof rawPlaces[number] & { lat: number; lng: number } =>
       place.lat != null && place.lng != null
   );
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ホーム", item: siteUrl },
+      { "@type": "ListItem", position: 2, name: "マップ", item: `${siteUrl}/map` },
+    ],
+  };
 
   return (
     <main className="app-shell app-shell--wide page-in">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Udon Map</p>
@@ -42,7 +56,7 @@ export default async function MapPage() {
             香川県うどんマップ
           </h1>
           <p className="app-lead">
-            地図とリストを連動させて、人気のうどん店をすばやく比較できます。
+            地図とリストで香川県のうどん店を探せます。評価やレビュー件数も確認できます。
           </p>
         </div>
         <div className="app-hero-meta">

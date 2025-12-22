@@ -2,8 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import UdonIcon from "@/components/UdonIcon";
 import type { Metadata } from "next";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { siteUrl } from "@/lib/site";
 
 export async function generateMetadata(props: {
   params: { placeId?: string };
@@ -143,12 +142,35 @@ export default async function ShopDetail(props: {
         : undefined,
     sameAs: place.googleMapsUri ?? undefined,
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "ホーム", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "一覧",
+        item: `${siteUrl}/list`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: place.name,
+        item: `${siteUrl}/shops/${encodeURIComponent(place.placeId)}`,
+      },
+    ],
+  };
 
   return (
     <main className="app-shell page-in">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <section className="app-hero">
         <div>

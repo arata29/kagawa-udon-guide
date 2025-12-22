@@ -168,6 +168,8 @@ textarea::placeholder {
   width: 24px;
   height: 24px;
   color: var(--accent);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -296,6 +298,8 @@ textarea::placeholder {
   width: 26px;
   height: 26px;
   color: var(--accent);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .app-lead {
@@ -495,29 +499,53 @@ textarea::placeholder {
   overflow: auto;
 }
 
+.map-backdrop {
+  display: none;
+}
+
+.map-fab {
+  display: none;
+}
+
+.map-panel-content input,
+.map-panel-content select,
+.map-panel-content textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.map-panel-content .app-button {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .map-panel-content .app-button {
+    width: auto;
+  }
+}
+
 @media (max-width: 1024px) {
   .map-layout {
     display: block;
+    position: relative;
   }
 
   .app-map {
-    height: 55vh;
+    height: 70vh;
     border-radius: 0;
   }
 
   .map-panel {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    border-radius: 18px 18px 0 0;
-    height: 6vh;
-    transition: height 220ms ease;
+    display: none;
   }
 
   .map-panel--expanded {
-    height: 90vh;
+    display: block;
+    position: fixed;
+    inset: 1rem;
+    z-index: 50;
+    height: auto;
+    border-radius: 18px;
   }
 
   .map-panel-content {
@@ -529,7 +557,25 @@ textarea::placeholder {
   }
 
   .map-panel-grip {
+    display: none;
+  }
+
+  .map-backdrop {
     display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(15, 12, 10, 0.45);
+    border: none;
+  }
+
+  .map-fab {
+    display: inline-flex;
+    position: fixed;
+    right: 0.1rem;
+    bottom: 0.1rem;
+    z-index: 40;
+    box-shadow: 0 12px 30px rgba(90, 60, 40, 0.25);
   }
 }
 
