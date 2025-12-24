@@ -89,6 +89,13 @@ export default function RootLayout({
 
   return (
     <html lang="ja" className={`${sans.variable} ${display.variable}`}>
+      <head>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5835728457656831"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="app-body">
         <script
           type="application/ld+json"
