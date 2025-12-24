@@ -42,10 +42,11 @@ export default function PrivacyPage() {
       <section className="app-card mt-6">
         <div className="space-y-3 text-sm app-text">
           <p>
-            本サイトでは、サービスの提供・改善および広告配信のためにCookie等の技術を利用する場合があります。
+            本サイトでは、サービスの提供・改善および広告配信のために
+            Cookie等の技術を利用する場合があります。
           </p>
           <p>
-            Google AdSenseなどの第三者配信事業者がCookieを使用し、ユーザーの過去のアクセス情報に基づいて広告を配信することがあります。
+            Google AdSenseなどの第三者配信事業者はCookieを使用し、ユーザーの過去のアクセス情報に基づいて広告を配信することがあります。
           </p>
           <p>
             アクセス解析のために、閲覧したページや参照元などの情報を収集する場合がありますが、個人を特定する情報を取得することはありません。
@@ -53,10 +54,12 @@ export default function PrivacyPage() {
           <p>
             取得した情報はサイトの品質向上・利便性改善の目的でのみ利用し、法令に基づく場合を除き第三者へ提供しません。
           </p>
-          <p>外部リンク先の内容やサービスについては当サイトでは責任を負いません。</p>
+          <p>
+            外部リンク先のサービスについては当サイトでは責任を負いません。
+          </p>
           <p>本ポリシーは予告なく変更する場合があります。</p>
           <div className="text-sm app-text">
-            <p>広告のオプトアウト方法:</p>
+            <p>広告のオプトアウト方法</p>
             <ul className="list-disc ml-5 mt-2 space-y-1">
               <li>
                 <a

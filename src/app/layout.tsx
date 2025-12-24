@@ -142,7 +142,7 @@ export default function RootLayout({
               <div>
                 <div className="footer-title">サイト概要</div>
                 <p className="footer-text">
-                  香川県内のうどん店をランキング・一覧・地図で探せる情報サイトです。
+                  香川県のうどん店をランキング・一覧・マップで探せる情報サイトです。
                 </p>
               </div>
 
@@ -187,8 +187,11 @@ export default function RootLayout({
               </div>
 
               <div>
-                <div className="footer-title">規約・ポリシー</div>
+                <div className="footer-title">規約/ポリシー</div>
                 <div className="footer-links">
+                  <Link className="footer-link" href="/about">
+                    運営者情報
+                  </Link>
                   <Link className="footer-link" href="/terms">
                     利用規約
                   </Link>
@@ -201,7 +204,7 @@ export default function RootLayout({
 
             <div className="footer-note">
               <span>※評価/件数は Google Places のデータに基づきます。</span>
-              <span>掲載・修正依頼はお問い合わせページへ。</span>
+              <span>掲載内容の修正依頼はお問い合わせページへ。</span>
             </div>
           </div>
         </footer>
