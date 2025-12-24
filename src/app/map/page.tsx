@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import MapClient from "./MapClient";
 import UdonIcon from "@/components/UdonIcon";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "香川県うどんマップ",
+  title: "【香川】讃岐うどん マップ | GoogleMapから店情報を自動取得 | 人気・おすすめ店",
   description:
-    "香川県のうどん店を地図で探せるページ。店名・評価・レビュー件数を表示します。",
+    "香川の讃岐うどん人気・おすすめ店をGoogleMapで表示。GoogleMapの評価とレビュー件数を見ながら比較できます。",
 };
 
 export default async function MapPage() {
@@ -53,10 +53,10 @@ export default async function MapPage() {
           <p className="app-kicker">Udon Map</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川県うどんマップ
+            香川 讃岐うどん マップ
           </h1>
           <p className="app-lead">
-            地図とリストで香川県のうどん店を探せます。評価やレビュー件数も確認できます。
+            香川の讃岐うどん人気・おすすめ店をGoogleMapで探せます。評価やレビュー件数も確認できます。
           </p>
         </div>
         <div className="app-hero-meta">

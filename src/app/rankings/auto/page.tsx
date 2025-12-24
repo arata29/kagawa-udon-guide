@@ -1,14 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
-import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "香川県うどん総合ランキング",
+  title:
+    "【香川】讃岐うどん ランキング | GoogleMapから店情報を自動取得 | 人気・おすすめ店",
   description:
-    "Googleの評価とレビュー件数をもとに、香川県のうどん店を自動ランキング。",
+    "香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で自動ランキング。総合ランキングで比較できます。",
   alternates: {
     canonical: "/",
   },
@@ -58,7 +59,7 @@ export default async function AutoRanking({
             <p className="app-kicker">Sanuki Udon Ranking</p>
             <h1 className="app-title">
               <UdonIcon className="app-title-icon" />
-              総合ランキング
+              香川 讃岐うどん 総合ランキング
             </h1>
             <p className="app-lead">
               まだ評価データがありません。sync:details を実行してください。
@@ -117,7 +118,7 @@ export default async function AutoRanking({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "香川県 うどん自動ランキング",
+    name: "香川 讃岐うどん 総合ランキング",
     itemListElement: paged.map((r, idx) => ({
       "@type": "ListItem",
       position: startIndex + idx + 1,
@@ -138,6 +139,12 @@ export default async function AutoRanking({
       {
         "@type": "ListItem",
         position: 1,
+        name: "ホーム",
+        item: siteUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
         name: "総合ランキング",
         item: siteUrl,
       },
@@ -159,10 +166,10 @@ export default async function AutoRanking({
           <p className="app-kicker">Sanuki Udon Ranking</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            総合ランキング
+            香川 讃岐うどん 総合ランキング
           </h1>
           <p className="app-lead">
-            香川県のうどん店を評価とレビュー件数で総合ランキング。人気店を手早く比較できます。
+            香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で総合ランキング。
           </p>
         </div>
         <div className="app-hero-meta">
@@ -177,10 +184,8 @@ export default async function AutoRanking({
         </div>
       </section>
 
-
       <div className="mt-4 text-xs app-muted">
-        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}
-        件/ページ）
+        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}件/ページ）
       </div>
 
       <ol className="mt-4 space-y-4">

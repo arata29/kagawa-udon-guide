@@ -18,11 +18,12 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { area: rawArea } = await props.params;
   const area = safeDecode(rawArea).trim();
-  const label = area || "エリア";
+  const areaTitle = area || "香川";
+  const areaSuffix = area ? `の${area}` : "";
 
   return {
-    title: `${label}のうどんランキング`,
-    description: `${label}のうどん店を評価とレビュー件数から自動ランキング。香川県の人気店をチェック。`,
+    title: `【香川】${areaTitle} 讃岐うどんランキング | GoogleMapから店情報を自動取得 | 人気・おすすめ店`,
+    description: `香川${areaSuffix}で讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で自動ランキング。エリア別で比較できます。`,
     alternates: {
       canonical: `${siteUrl}/rankings/area/${encodeURIComponent(area)}`,
     },
@@ -112,7 +113,7 @@ export default async function AreaRanking(props: {
 
   const C = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
   const m = 50;
-  
+
   const { _max } = await prisma.placeCache.aggregate({
     _max: { fetchedAt: true },
   });
@@ -120,7 +121,6 @@ export default async function AreaRanking(props: {
   const lastSyncedLabel = lastSynced
     ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
     : null;
-
 
   const ranked = rows
     .map((r) => {
@@ -154,7 +154,7 @@ export default async function AreaRanking(props: {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: `${area} うどんランキング`,
+    name: `${area} 讃岐うどんランキング`,
     itemListElement: paged.map((r, idx) => ({
       "@type": "ListItem",
       position: startIndex + idx + 1,
@@ -206,8 +206,7 @@ export default async function AreaRanking(props: {
             {area}のランキング
           </h1>
           <p className="app-lead">
-            評価とレビュー件数をもとにベイズ平均でランキング化しています。
-            エリア内の人気傾向がわかるので、初訪問でも選びやすいです。
+            香川県{area}で讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数をもとにベイズ平均でランキング化しています。エリア別で比較できます。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="app-button app-button--ghost" href="/rankings">
@@ -219,14 +218,13 @@ export default async function AreaRanking(props: {
           <div className="app-stat">
             <span className="app-stat-value">{ranked.length}</span>
             <span className="app-stat-label">店舗</span>
-          </div>          
+          </div>
           <div className="app-stat">
             <span className="app-stat-value">{lastSyncedLabel ?? "未更新"}</span>
             <span className="app-stat-label">最終更新</span>
           </div>
         </div>
       </section>
-
 
       <div className="mt-4 text-xs app-muted">
         表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}件/ページ）
@@ -261,7 +259,7 @@ export default async function AreaRanking(props: {
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <span className="app-badge app-badge--accent">
-                      ★ {r.rating}
+                      ★{r.rating}
                     </span>
                     <span className="app-badge app-badge--soft">
                       {r.userRatingCount}件
