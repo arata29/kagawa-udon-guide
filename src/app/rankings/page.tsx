@@ -1,13 +1,13 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import UdonIcon from "@/components/UdonIcon";
 import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "ランキング一覧",
+  title: "【香川】讃岐うどん ランキング一覧 | GoogleMapから店情報を自動取得 | 人気・おすすめ店",
   description:
-    "香川県うどんランキングの案内ページ。総合ランキングと地域別ランキングへ進めます。",
+    "香川の讃岐うどん人気・おすすめ店を総合・エリア別ランキングで比較。GoogleMapの評価とレビュー件数をもとに掲載しています。",
 };
 
 export default async function RankingsHub() {
@@ -61,13 +61,10 @@ export default async function RankingsHub() {
           <p className="app-kicker">Ranking Guide</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            ランキング一覧
+            香川 讃岐うどん ランキング一覧
           </h1>
           <p className="app-lead">
-            Googleの評価とレビュー件数をもとに、香川県のうどん店をランキング形式で紹介しています。
-            総合は全体の傾向、エリア別は近場の名店探しに便利です。
-            <br></br>
-            ※スコアは評価とレビュー件数をもとにベイズ平均で算出しています。
+            香川の讃岐うどん人気・おすすめ店をランキングで探せます。
           </p>
         </div>
         <div className="app-hero-meta">
@@ -90,7 +87,7 @@ export default async function RankingsHub() {
             <div>
               <div className="font-semibold">総合ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                香川県全体の評価データをもとに、総合ランキングを作成しています。
+                香川の讃岐うどん人気・おすすめ店を総合ランキングで紹介しています。
               </div>
             </div>
 
@@ -105,8 +102,7 @@ export default async function RankingsHub() {
             <div>
               <div className="font-semibold">エリア別ランキング</div>
               <div className="mt-1 text-sm app-muted">
-                地域ごとの傾向を見やすくまとめています。
-                同じエリア内で比較できるので、周遊や食べ歩きの計画に役立ちます。
+                エリアごとの讃岐うどんランキングを比較できます。
               </div>
             </div>
             <div className="text-xs app-muted whitespace-nowrap">

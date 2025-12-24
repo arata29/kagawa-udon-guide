@@ -1,13 +1,14 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { cache } from "react";
 import UdonIcon from "@/components/UdonIcon";
 import { siteUrl } from "@/lib/site";
 
-const listTitle = "香川県うどん店一覧";
+const listTitle =
+  "【香川】讃岐うどん屋一覧 | GoogleMapから店情報を自動取得 | 人気・おすすめ店";
 const listDescription =
-  "香川県内のうどん店を一覧で紹介。エリア・評価・レビュー件数で絞り込みできます。";
+  "香川の讃岐うどん人気・おすすめ店を一覧で検索。GoogleMapの評価とレビュー件数、エリアで絞り込みできます。";
 const listPageSize = 30;
 const getTotalCount = cache(async () => prisma.placeCache.count());
 
@@ -153,7 +154,7 @@ export default async function ListPage({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "香川県うどん店一覧",
+    name: listTitle,
     itemListElement: places.slice(0, take).map((p, idx) => ({
       "@type": "ListItem",
       position: idx + 1,
@@ -215,10 +216,10 @@ export default async function ListPage({
           <p className="app-kicker">Sanuki Udon Index</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川県うどん店一覧
+            香川 讃岐うどん屋一覧
           </h1>
           <p className="app-lead">
-            店名や住所で検索し、評価やレビュー件数で絞り込みできます。
+            香川の讃岐うどん人気・おすすめ店を一覧で探せます。検索と評価で比較できます。
           </p>
         </div>
         <div className="app-hero-meta">
