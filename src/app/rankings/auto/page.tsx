@@ -4,12 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
 import UdonIcon from "@/components/UdonIcon";
 import { siteUrl } from "@/lib/site";
+import { isOpenNow } from "@/lib/openingHours";
+import type { OpeningHours } from "@/lib/openingHours";
 
 export const metadata: Metadata = {
-  title:
-    "【香川】讃岐うどん ランキング | GoogleMapから店情報を自動取得 | 人気・おすすめ店",
+  title: "【香川】讃岐うどん総合ランキング",
   description:
-    "香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で自動ランキング。総合ランキングで比較できます。",
+    "香川の讃岐うどん人気・おすすめ店をGoogleMapから店情報を自動取得し、評価とレビュー件数で総合ランキング。比較に便利です。",
   alternates: {
     canonical: "/",
   },
@@ -48,6 +49,8 @@ export default async function AutoRanking({
       rating: true,
       userRatingCount: true,
       googleMapsUri: true,
+      openingHours: true,
+      utcOffsetMinutes: true,
     },
   });
 
@@ -59,7 +62,7 @@ export default async function AutoRanking({
             <p className="app-kicker">Sanuki Udon Ranking</p>
             <h1 className="app-title">
               <UdonIcon className="app-title-icon" />
-              香川 讃岐うどん 総合ランキング
+              香川県讃岐うどん総合ランキング
             </h1>
             <p className="app-lead">
               まだ評価データがありません。sync:details を実行してください。
@@ -118,7 +121,7 @@ export default async function AutoRanking({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "香川 讃岐うどん 総合ランキング",
+    name: "香川県讃岐うどん総合ランキング",
     itemListElement: paged.map((r, idx) => ({
       "@type": "ListItem",
       position: startIndex + idx + 1,
@@ -166,7 +169,7 @@ export default async function AutoRanking({
           <p className="app-kicker">Sanuki Udon Ranking</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川 讃岐うどん 総合ランキング
+            香川県讃岐うどん総合ランキング
           </h1>
           <p className="app-lead">
             香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で総合ランキング。
@@ -197,6 +200,10 @@ export default async function AutoRanking({
               : `https://www.google.com/maps?q=${encodeURIComponent(
                   `${r.name} ${r.address ?? ""}`
                 )}&z=16`);
+          const openNow = isOpenNow(
+            r.openingHours as OpeningHours | null,
+            r.utcOffsetMinutes
+          );
 
           return (
             <li key={r.placeId} className="app-card">
@@ -222,6 +229,9 @@ export default async function AutoRanking({
                     <span className="app-badge app-badge--soft">
                       {r.userRatingCount}件
                     </span>
+                    {openNow === true && (
+                      <span className="app-badge app-badge--accent">営業中</span>
+                    )}
                   </div>
 
                   <div className="mt-2 text-xs app-muted">

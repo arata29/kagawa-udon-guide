@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma";
 import MapClient from "./MapClient";
 import UdonIcon from "@/components/UdonIcon";
 import { siteUrl } from "@/lib/site";
+import type { OpeningHours } from "@/lib/openingHours";
 
 export const metadata: Metadata = {
-  title: "【香川】讃岐うどん マップ | GoogleMapから店情報を自動取得 | 人気・おすすめ店",
+  title: "【香川】讃岐うどんマップ",
   description:
-    "香川の讃岐うどん人気・おすすめ店をGoogleMapで表示。GoogleMapの評価とレビュー件数を見ながら比較できます。",
+    "香川の讃岐うどん人気・おすすめ店をGoogleMapから店情報を自動取得して表示。評価とレビュー件数を見ながら比較できます。",
 };
 
 export default async function MapPage() {
@@ -26,13 +27,20 @@ export default async function MapPage() {
       rating: true,
       userRatingCount: true,
       googleMapsUri: true,
+      openingHours: true,
+      utcOffsetMinutes: true,
     },
     orderBy: { fetchedAt: "desc" },
   });
-  const places = rawPlaces.filter(
-    (place): place is typeof rawPlaces[number] & { lat: number; lng: number } =>
-      place.lat != null && place.lng != null
-  );
+  const places = rawPlaces
+    .filter(
+      (place): place is typeof rawPlaces[number] & { lat: number; lng: number } =>
+        place.lat != null && place.lng != null
+    )
+    .map((place) => ({
+      ...place,
+      openingHours: place.openingHours as OpeningHours | null,
+    }));
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",

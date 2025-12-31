@@ -69,6 +69,15 @@ type Details = {
   googleMapsUri?: string;
   types?: string[];
 
+  regularOpeningHours?: {
+    periods?: {
+      open?: { day?: number; hour?: number; minute?: number };
+      close?: { day?: number; hour?: number; minute?: number };
+    }[];
+    weekdayDescriptions?: string[];
+  };
+  utcOffsetMinutes?: number;
+
   // reviews はコストが増えるため、必要なときだけ取得する想定
   reviews?: { text?: { text?: string } }[];
 };
@@ -80,7 +89,7 @@ async function fetchDetails(placeId: string): Promise<Details | null> {
 
   // FieldMask は必要なものだけ
   const fieldMaskBase =
-    "id,displayName,formattedAddress,location,rating,userRatingCount,googleMapsUri,types";
+    "id,displayName,formattedAddress,location,rating,userRatingCount,googleMapsUri,types,regularOpeningHours,utcOffsetMinutes";
   const fieldMask = USE_REVIEWS ? `${fieldMaskBase},reviews` : fieldMaskBase;
 
   const res = await fetch(url, {
@@ -114,6 +123,53 @@ function extractArea(address?: string | null) {
 
   return null;
 }
+
+
+const MINUTES_IN_DAY = 24 * 60;
+const MINUTES_IN_WEEK = 7 * MINUTES_IN_DAY;
+
+const toMinutes = (hour?: number, minute?: number) =>
+  (hour ?? 0) * 60 + (minute ?? 0);
+
+const toWeekMinutes = (day?: number, minutes?: number) =>
+  (day ?? 0) * MINUTES_IN_DAY + (minutes ?? 0);
+
+const computeOpenDays = (openingHours?: Details["regularOpeningHours"] | null) => {
+  const periods = openingHours?.periods ?? [];
+  if (periods.length === 0) return [] as number[];
+
+  const days = new Set<number>();
+  for (const period of periods) {
+    const open = period.open;
+    const close = period.close;
+    if (!open || !close || open.day == null || close.day == null) continue;
+
+    const openMinutes = toMinutes(open.hour, open.minute);
+    const closeMinutes = toMinutes(close.hour, close.minute);
+    let openWeek = toWeekMinutes(open.day, openMinutes);
+    let closeWeek = toWeekMinutes(close.day, closeMinutes);
+
+    if (closeWeek <= openWeek) {
+      closeWeek += MINUTES_IN_WEEK;
+    }
+
+    const overlaps = (start: number, end: number) =>
+      openWeek < end && closeWeek > start;
+
+    for (let day = 0; day < 7; day += 1) {
+      const dayStart = day * MINUTES_IN_DAY;
+      const dayEnd = dayStart + MINUTES_IN_DAY;
+      if (
+        overlaps(dayStart, dayEnd) ||
+        overlaps(dayStart + MINUTES_IN_WEEK, dayEnd + MINUTES_IN_WEEK)
+      ) {
+        days.add(day);
+      }
+    }
+  }
+
+  return Array.from(days).sort((a, b) => a - b);
+};
 
 /**
  * AIなしで“それっぽく”まとめる簡易レビュー要約
@@ -289,6 +345,14 @@ async function main() {
       const reviewSummary =
         reviewTexts.length > 0 ? summarizeReviewsJaFree(reviewTexts) : null;
 
+      const openingHours = d.regularOpeningHours
+          ? {
+              periods: d.regularOpeningHours.periods ?? [],
+              weekdayDescriptions: d.regularOpeningHours.weekdayDescriptions ?? [],
+            }
+          : undefined;
+      const openDays = computeOpenDays(d.regularOpeningHours);
+
       // isHidden を戻す（既にfalseでもOK）
       await prisma.place
         .update({ where: { placeId }, data: { isHidden: false } })
@@ -308,6 +372,9 @@ async function main() {
           rating: d.rating ?? null,
           userRatingCount: d.userRatingCount ?? null,
           googleMapsUri: d.googleMapsUri ?? null,
+          openingHours,
+          openDays,
+          utcOffsetMinutes: d.utcOffsetMinutes ?? null,
           fetchedAt: now,
           reviewSummary,
         },
@@ -321,6 +388,9 @@ async function main() {
           rating: d.rating ?? null,
           userRatingCount: d.userRatingCount ?? null,
           googleMapsUri: d.googleMapsUri ?? null,
+          openingHours,
+          openDays,
+          utcOffsetMinutes: d.utcOffsetMinutes ?? null,
           fetchedAt: now,
           reviewSummary,
         },

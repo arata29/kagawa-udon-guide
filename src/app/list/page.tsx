@@ -3,12 +3,21 @@ import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { cache } from "react";
 import UdonIcon from "@/components/UdonIcon";
+import OpenHoursFilter from "@/app/list/OpenHoursFilter";
 import { siteUrl } from "@/lib/site";
+import {
+  getLocalDayMinutes,
+  isOpenAt,
+  isOpenNow,
+  isClosedOnDay,
+  isOpenOnDay,
+  parseTimeInput,
+} from "@/lib/openingHours";
+import type { OpeningHours } from "@/lib/openingHours";
 
-const listTitle =
-  "【香川】讃岐うどん屋一覧 | GoogleMapから店情報を自動取得 | 人気・おすすめ店";
+const listTitle = "【香川】讃岐うどん店一覧";
 const listDescription =
-  "香川の讃岐うどん人気・おすすめ店を一覧で検索。GoogleMapの評価とレビュー件数、エリアで絞り込みできます。";
+  "香川の讃岐うどん人気・おすすめ店を一覧で検索。GoogleMapから店情報を自動取得し、評価・レビュー件数・エリアで絞り込みできます。";
 const listPageSize = 30;
 const getTotalCount = cache(async () => prisma.placeCache.count());
 
@@ -19,6 +28,9 @@ type RawSearchParams = {
   minRating?: string | string[];
   minReviews?: string | string[];
   area?: string | string[];
+  openNow?: string | string[];
+  openAt?: string | string[];
+  openDay?: string | string[];
 };
 
 type ParsedSearchParams = {
@@ -28,6 +40,9 @@ type ParsedSearchParams = {
   minRating: number;
   minReviews: number;
   area: string;
+  openNow: boolean;
+  openAt: string;
+  openDay: string;
 };
 
 type HrefParams = {
@@ -37,19 +52,41 @@ type HrefParams = {
   minRating?: string;
   minReviews?: string;
   area?: string;
+  openNow?: string;
+  openAt?: string;
+  openDay?: string;
 };
 
 const asString = (value?: string | string[]) =>
   Array.isArray(value) ? value[0] ?? "" : value ?? "";
 
+const normalizeNumberInput = (value: string) =>
+  value
+    .replace(/[０-９]/g, (char) =>
+      String.fromCharCode(char.charCodeAt(0) - 0xff10 + 48)
+    )
+    .replace(/[．，]/g, ".")
+    .trim();
+
+const parseNumberInput = (value: string) => {
+  const normalized = normalizeNumberInput(value);
+  const parsed = Number(normalized);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 const parseSearchParams = (sp: RawSearchParams = {}): ParsedSearchParams => {
   const q = asString(sp.q).trim();
   const page = Math.max(1, Number(asString(sp.page)) || 1);
   const sort = asString(sp.sort) === "rating" ? "rating" : "reviews";
-  const minRating = Math.max(0, Number(asString(sp.minRating)) || 0);
-  const minReviews = Math.max(0, Number(asString(sp.minReviews)) || 0);
+  const minRating = Math.max(0, parseNumberInput(asString(sp.minRating)));
+  const minReviews = Math.max(0, parseNumberInput(asString(sp.minReviews)));
   const area = asString(sp.area).trim();
-  return { q, page, sort, minRating, minReviews, area };
+  const openAtRaw = asString(sp.openAt).trim();
+  const openDayRaw = asString(sp.openDay).trim();
+  const openNow = asString(sp.openNow) === "1";
+  const openAt = openNow ? "" : openAtRaw;
+  const openDay = openNow ? "" : openDayRaw;
+  return { q, page, sort, minRating, minReviews, area, openNow, openAt, openDay };
 };
 
 export async function generateMetadata({
@@ -57,14 +94,17 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<RawSearchParams>;
 }): Promise<Metadata> {
-  const { q, page, sort, minRating, minReviews, area } =
+  const { q, page, sort, minRating, minReviews, area, openNow, openAt, openDay } =
     parseSearchParams(await searchParams);
   const hasFilters =
     Boolean(q) ||
     Boolean(area) ||
     minRating > 0 ||
     minReviews > 0 ||
-    sort !== "reviews";
+    sort !== "reviews" ||
+    openNow ||
+    Boolean(openAt) ||
+    Boolean(openDay);
   const canonical = hasFilters
     ? "/list"
     : page > 1
@@ -94,15 +134,25 @@ export default async function ListPage({
 }: {
   searchParams: Promise<RawSearchParams>;
 }) {
-  const { q, page, sort, minRating, minReviews, area } = parseSearchParams(
-    await searchParams
-  );
+  const { q, page, sort, minRating, minReviews, area, openNow, openAt, openDay } =
+    parseSearchParams(await searchParams);
   const hasFilters =
     Boolean(q) ||
     Boolean(area) ||
     minRating > 0 ||
     minReviews > 0 ||
-    sort !== "reviews";
+    sort !== "reviews" ||
+    openNow ||
+    Boolean(openAt) ||
+    Boolean(openDay);
+
+  const openAtValue = openAt.trim();
+  const openDayValue = openDay.trim();
+  const openAtMinutes = parseTimeInput(openAtValue);
+  const openDayIndex =
+    openDayValue === "" ? null : Number.parseInt(openDayValue, 10);
+  const hasOpenDayFilter = openDayIndex != null && !Number.isNaN(openDayIndex);
+  const needsOpenFilter = openNow || openAtMinutes != null;
 
   const take = listPageSize;
   const skip = (page - 1) * take;
@@ -121,6 +171,7 @@ export default async function ListPage({
     ...(minReviews > 0 ? { userRatingCount: { gte: minReviews } } : {}),
     ...(sort === "rating" ? { rating: { not: null } } : {}),
     ...(sort === "reviews" ? { userRatingCount: { not: null } } : {}),
+    ...(hasOpenDayFilter ? { openDays: { has: openDayIndex } } : {}),
   };
 
   const orderBy =
@@ -132,18 +183,70 @@ export default async function ListPage({
           { fetchedAt: "desc" as const },
         ];
 
-  const totalPromise = hasFilters
-    ? prisma.placeCache.count({ where })
-    : getTotalCount();
-  const [total, places, areaRows] = await Promise.all([
-    totalPromise,
-    prisma.placeCache.findMany({ where, orderBy, take, skip }),
+  const [areaRows, basePlaces, totalBase] = await Promise.all([
     prisma.placeCache.findMany({
       where: { area: { not: null } },
       distinct: ["area"],
       select: { area: true },
     }),
+    needsOpenFilter
+      ? prisma.placeCache.findMany({ where, orderBy })
+      : prisma.placeCache.findMany({ where, orderBy, take, skip }),
+    needsOpenFilter
+      ? Promise.resolve(0)
+      : hasFilters
+        ? prisma.placeCache.count({ where })
+        : getTotalCount(),
   ]);
+
+  const filteredPlaces = needsOpenFilter
+    ? basePlaces.filter((p) => {
+        const openingHours = p.openingHours as OpeningHours | null;
+        if (openNow) {
+          const result = isOpenNow(openingHours, p.utcOffsetMinutes);
+          return result === true;
+        }
+        if (openAtMinutes != null) {
+          const day =
+            openDayIndex != null && !Number.isNaN(openDayIndex)
+              ? openDayIndex
+              : getLocalDayMinutes(new Date(), p.utcOffsetMinutes).day;
+          const result = isOpenAt(openingHours, day, openAtMinutes);
+          return result === true;
+        }
+        if (openDayIndex != null && !Number.isNaN(openDayIndex)) {
+          const result = isOpenOnDay(openingHours, openDayIndex);
+          return result === true;
+        }
+        return true;
+      })
+    : basePlaces;
+
+  const ratingThreshold = minRating > 0 ? minRating : null;
+  const reviewThreshold = minReviews > 0 ? minReviews : null;
+  const strictPlaces =
+    ratingThreshold != null || reviewThreshold != null
+      ? filteredPlaces.filter((p) => {
+          if (
+            ratingThreshold != null &&
+            (p.rating == null || p.rating < ratingThreshold)
+          ) {
+            return false;
+          }
+          if (
+            reviewThreshold != null &&
+            (p.userRatingCount == null || p.userRatingCount < reviewThreshold)
+          ) {
+            return false;
+          }
+          return true;
+        })
+      : filteredPlaces;
+
+  const total = needsOpenFilter ? strictPlaces.length : totalBase;
+  const places = needsOpenFilter
+    ? strictPlaces.slice(skip, skip + take)
+    : basePlaces;
 
   const areas = areaRows
     .map((a) => (a.area ?? "").trim())
@@ -192,11 +295,17 @@ export default async function ListPage({
     const nminReviews =
       next.minReviews ?? (minReviews > 0 ? String(minReviews) : "");
     const narea = next.area ?? area;
+    const nopenNow = next.openNow ?? (openNow ? "1" : "");
+    const nopenAt = next.openAt ?? openAt;
+    const nopenDay = next.openDay ?? openDay;
     if (nq) params.set("q", nq);
     if (nsort) params.set("sort", nsort);
     if (nminRating) params.set("minRating", nminRating);
     if (nminReviews) params.set("minReviews", nminReviews);
     if (narea) params.set("area", narea);
+    if (nopenNow) params.set("openNow", nopenNow);
+    if (nopenAt) params.set("openAt", nopenAt);
+    if (nopenDay) params.set("openDay", nopenDay);
     params.set("page", np);
     return `/list?${params.toString()}`;
   };
@@ -237,45 +346,70 @@ export default async function ListPage({
       </section>
 
       <section className="app-card mt-6">
-        <form className="filter-form grid gap-3" action="/list" method="get">
+        <form
+          key={`${q}|${area}|${sort}|${minRating}|${minReviews}|${
+            openNow ? 1 : 0
+          }|${openAt}|${openDay}`}
+          className="filter-form grid gap-3"
+          action="/list"
+          method="get"
+        >
           <input
             name="q"
             defaultValue={q}
             placeholder="店名/住所で検索（例: 高松, うどん）"
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <select name="sort" defaultValue={sort}>
-              <option value="reviews">レビュー件数順</option>
-              <option value="rating">評価順</option>
-            </select>
+          <div className="grid gap-2">
+            <div className="text-xs app-muted whitespace-normal">並び替え・エリア</div>
+            <div className="grid grid-cols-1 gap-2">
+              <select name="sort" defaultValue={sort}>
+                <option value="reviews">レビュー件数順</option>
+                <option value="rating">評価順</option>
+              </select>
+              <select name="area" defaultValue={area}>
+                <option value="">エリア（全て）</option>
+                {areas.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-            <select name="area" defaultValue={area}>
-              <option value="">エリア（全て）</option>
-              {areas.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-2">
+            <div className="text-xs app-muted whitespace-normal">評価・レビュー</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                name="minRating"
+                type="number"
+                step="0.1"
+                min="0"
+                max="5"
+                defaultValue={minRating > 0 ? minRating : undefined}
+                placeholder="最低評価（例: 4.0）"
+              />
+              <input
+                name="minReviews"
+                type="number"
+                min="0"
+                defaultValue={minReviews > 0 ? minReviews : undefined}
+                placeholder="最低レビュー数（例: 50）"
+              />
+            </div>
+          </div>
 
-            <input
-              name="minRating"
-              type="number"
-              step="0.1"
-              min="0"
-              max="5"
-              defaultValue={minRating > 0 ? minRating : undefined}
-              placeholder="最低評価（例: 4.0）"
+          <div className="grid gap-2">
+            <div className="text-xs app-muted whitespace-normal">営業時間</div>
+            <OpenHoursFilter
+              openDay={openDay}
+              openAt={openAt}
+              openNow={openNow}
             />
-
-            <input
-              name="minReviews"
-              type="number"
-              min="0"
-              defaultValue={minReviews > 0 ? minReviews : undefined}
-              placeholder="最低レビュー数（例: 50）"
-            />
+            <p className="text-xs app-muted">
+              営業時間はGoogleマップの情報のため、誤りがある場合があります。
+            </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
@@ -283,7 +417,13 @@ export default async function ListPage({
             <button type="submit" className="app-button">
               検索
             </button>
-            {(q || area || minRating > 0 || minReviews > 0) && (
+            {(q ||
+              area ||
+              minRating > 0 ||
+              minReviews > 0 ||
+              openNow ||
+              openAt ||
+              openDay) && (
               <Link href="/list?page=1" className="app-button app-button--ghost">
                 リセット
               </Link>
@@ -302,20 +442,33 @@ export default async function ListPage({
         </div>
       ) : (
         <ul className="mt-6 list-none p-0 space-y-4">
-          {places.map((p) => {
-            const openMapsUrl =
-              p.googleMapsUri ??
-              (p.lat != null && p.lng != null
-                ? `https://www.google.com/maps?q=${p.lat},${p.lng}&z=16`
-                : `https://www.google.com/maps?q=${encodeURIComponent(
-                    `${p.name} ${p.address ?? ""}`
-                  )}&z=16`);
+      {places.map((p) => {
+        const openMapsUrl =
+          p.googleMapsUri ??
+          (p.lat != null && p.lng != null
+            ? `https://www.google.com/maps?q=${p.lat},${p.lng}&z=16`
+            : `https://www.google.com/maps?q=${encodeURIComponent(
+                `${p.name} ${p.address ?? ""}`
+              )}&z=16`);
+        const isOpen = isOpenNow(
+          p.openingHours as OpeningHours | null,
+          p.utcOffsetMinutes
+        );
+        const todayIndex = getLocalDayMinutes(
+          new Date(),
+          p.utcOffsetMinutes
+        ).day;
+        const openDays = Array.isArray(p.openDays) ? p.openDays : null;
+        const closedToday =
+          openDays != null && openDays.length > 0
+            ? !openDays.includes(todayIndex)
+            : isClosedOnDay(p.openingHours as OpeningHours | null, todayIndex);
 
-            return (
-              <li key={p.placeId} className="app-card">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-semibold break-words">{p.name}</div>
+        return (
+          <li key={p.placeId} className="app-card">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-semibold break-words">{p.name}</div>
 
                     {p.address && (
                       <div className="mt-1 text-sm app-muted break-words">
@@ -323,19 +476,27 @@ export default async function ListPage({
                       </div>
                     )}
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {p.rating != null && (
-                        <span className="app-badge app-badge--accent">
-                          ★{p.rating}
-                        </span>
-                      )}
-                      {p.userRatingCount != null && (
-                        <span className="app-badge app-badge--soft">
-                          {p.userRatingCount}件
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {p.rating != null && (
+                    <span className="app-badge app-badge--accent">
+                      ★{p.rating}
+                    </span>
+                  )}
+                  {p.userRatingCount != null && (
+                    <span className="app-badge app-badge--soft">
+                      {p.userRatingCount}件
+                    </span>
+                  )}
+                  {isOpen === true && (
+                    <span className="app-badge app-badge--accent">
+                      営業中
+                    </span>
+                  )}
+                  {closedToday === true && (
+                    <span className="app-badge">定休日</span>
+                  )}
+                </div>
+              </div>
 
                   <div className="flex gap-2 sm:flex-col sm:items-end">
                     <a
