@@ -5,9 +5,9 @@ import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "【香川】讃岐うどん ランキング一覧 | GoogleMapから店情報を自動取得 | 人気・おすすめ店",
+  title: "【香川】讃岐うどんランキング一覧",
   description:
-    "香川の讃岐うどん人気・おすすめ店を総合・エリア別ランキングで比較。GoogleMapの評価とレビュー件数をもとに掲載しています。",
+    "香川の讃岐うどん人気・おすすめ店を総合・エリア別ランキングで比較。GoogleMapから店情報を自動取得し、評価とレビュー件数を反映しています。",
 };
 
 export default async function RankingsHub() {

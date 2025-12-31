@@ -43,6 +43,10 @@ model PlaceCache {
   userRatingCount Int?
   googleMapsUri   String?
 
+  openingHours     Json?
+  utcOffsetMinutes Int?
+  openDays         Int[]    @default([])
+
   reviewSummary   String?
 
   @@index([fetchedAt])

@@ -4,6 +4,8 @@ import { bayesScore } from "@/lib/ranking";
 import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
 import { siteUrl } from "@/lib/site";
+import { isOpenNow } from "@/lib/openingHours";
+import type { OpeningHours } from "@/lib/openingHours";
 
 function safeDecode(value: string) {
   try {
@@ -22,8 +24,8 @@ export async function generateMetadata(props: {
   const areaSuffix = area ? `の${area}` : "";
 
   return {
-    title: `【香川】${areaTitle} 讃岐うどんランキング | GoogleMapから店情報を自動取得 | 人気・おすすめ店`,
-    description: `香川${areaSuffix}で讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で自動ランキング。エリア別で比較できます。`,
+    title: `【香川】${areaTitle} 讃岐うどんランキング`,
+    description: `香川${areaSuffix}で讃岐うどん人気・おすすめ店をGoogleMapから店情報を自動取得し、評価とレビュー件数で自動ランキング。`,
     alternates: {
       canonical: `${siteUrl}/rankings/area/${encodeURIComponent(area)}`,
     },
@@ -86,6 +88,8 @@ export default async function AreaRanking(props: {
       rating: true,
       userRatingCount: true,
       googleMapsUri: true,
+      openingHours: true,
+      utcOffsetMinutes: true,
     },
   });
 
@@ -206,7 +210,7 @@ export default async function AreaRanking(props: {
             {area}のランキング
           </h1>
           <p className="app-lead">
-            香川県{area}で讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数をもとにベイズ平均でランキング化しています。エリア別で比較できます。
+            評価とレビュー件数をもとにベイズ平均でランキング化しています。エリアの人気傾向がわかるので、初訪問でも選びやすいです。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="app-button app-button--ghost" href="/rankings">
@@ -239,6 +243,10 @@ export default async function AreaRanking(props: {
               : `https://www.google.com/maps?q=${encodeURIComponent(
                   `${r.name} ${r.address ?? ""}`
                 )}&z=16`);
+          const openNow = isOpenNow(
+            r.openingHours as OpeningHours | null,
+            r.utcOffsetMinutes
+          );
 
           return (
             <li key={r.placeId} className="app-card">
@@ -264,6 +272,9 @@ export default async function AreaRanking(props: {
                     <span className="app-badge app-badge--soft">
                       {r.userRatingCount}件
                     </span>
+                    {openNow === true && (
+                      <span className="app-badge app-badge--accent">営業中</span>
+                    )}
                   </div>
                 </div>
 
