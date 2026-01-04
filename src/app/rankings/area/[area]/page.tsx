@@ -24,8 +24,8 @@ export async function generateMetadata(props: {
   const areaSuffix = area ? `の${area}` : "";
 
   return {
-    title: `【香川】${areaTitle} 讃岐うどんランキング`,
-    description: `香川${areaSuffix}で讃岐うどん人気・おすすめ店をGoogleMapから店情報を自動取得し、評価とレビュー件数で自動ランキング。`,
+    title: `香川 ${areaTitle} 讃岐うどんランキング`,
+    description: `${areaTitle}の讃岐うどん人気・おすすめ店をランキングで比較。評価とレビュー件数をもとに掲載しています。`,
     alternates: {
       canonical: `${siteUrl}/rankings/area/${encodeURIComponent(area)}`,
     },
@@ -227,6 +227,24 @@ export default async function AreaRanking(props: {
             <span className="app-stat-value">{lastSyncedLabel ?? "未更新"}</span>
             <span className="app-stat-label">最終更新</span>
           </div>
+        </div>
+      </section>
+
+      <section className="app-card mt-6">
+        <div className="space-y-2 text-sm app-text">
+          <div className="font-semibold">エリアランキングの見方</div>
+          <p>
+            {area}で営業する讃岐うどん店を、評価とレビュー件数をもとに並べています。
+          </p>
+          <p>
+            近場で人気の店を探したいときに便利です。旅行や出張の前に候補を絞り込む用途にも向いています。
+          </p>
+          <p>
+            レビュー件数が多い店は、評価の信頼性が高い目安になります。
+          </p>
+          <p>
+            情報は Google Maps の公開情報を参照しています。最新の営業状況は来店前にご確認ください。
+          </p>
         </div>
       </section>
 

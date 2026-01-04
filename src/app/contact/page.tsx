@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
 import ContactForm from "./ContactForm";
 import { siteUrl } from "@/lib/site";
@@ -36,12 +36,14 @@ export default function ContactPage() {
             <UdonIcon className="app-title-icon" />
             お問い合わせ
           </h1>
-          <p className="app-lead">掲載内容の修正依頼などはこちらからお願いします。</p>
+          <p className="app-lead">
+            掲載内容の修正依頼やご意見はこちらからお願いします。
+          </p>
         </div>
       </section>
 
       <section className="app-card mt-6">
-        <p className="app-muted">入力して送信してください。</p>
+        <p className="app-muted">下記フォームに入力して送信してください。</p>
         <ContactForm />
       </section>
     </main>

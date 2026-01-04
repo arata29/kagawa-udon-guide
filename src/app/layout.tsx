@@ -20,7 +20,7 @@ const display = Noto_Serif_JP({
 
 const siteTitle = "香川県うどんランキング";
 const siteDescription =
-  "香川県のうどん店をランキング・一覧・地図で探せる情報サイト。評価とレビュー件数から人気店を比較できます。";
+  "香川の讃岐うどんをランキング・一覧・地図で探せる情報サイト。評価とレビュー件数から人気店を比較できます。";
 
 export const metadata: Metadata = {
   title: {

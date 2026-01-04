@@ -15,9 +15,9 @@ import {
 } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
 
-const listTitle = "【香川】讃岐うどん店一覧";
+const listTitle = "香川 讃岐うどん店一覧｜検索・絞り込み";
 const listDescription =
-  "香川の讃岐うどん人気・おすすめ店を一覧で検索。GoogleMapから店情報を自動取得し、評価・レビュー件数・エリアで絞り込みできます。";
+  "香川の讃岐うどん人気・おすすめ店を一覧で検索。評価・レビュー件数・エリア・営業時間で絞り込みできます。";
 const listPageSize = 30;
 const getTotalCount = cache(async () => prisma.placeCache.count());
 
@@ -342,6 +342,24 @@ export default async function ListPage({
             </span>
             <span className="app-stat-label">ページ</span>
           </div>
+        </div>
+      </section>
+
+      <section className="app-card mt-6">
+        <div className="space-y-2 text-sm app-text">
+          <div className="font-semibold">一覧の使い方</div>
+          <p>
+            店名・住所で検索し、評価やレビュー件数、エリアで絞り込めます。複数条件を組み合わせて比較するのがおすすめです。
+          </p>
+          <p>
+            営業中のみや曜日・時刻で絞り込むと、いま行ける候補を探しやすくなります。
+          </p>
+          <p>
+            気になる店は「Googleマップを開く」から位置や周辺環境も確認できます。
+          </p>
+          <p>
+            営業時間は Google Maps の公開情報を参照しています。来店前に公式情報もご確認ください。
+          </p>
         </div>
       </section>
 
