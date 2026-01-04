@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
 import { siteUrl } from "@/lib/site";
 
@@ -35,31 +35,31 @@ export default function PrivacyPage() {
             <UdonIcon className="app-title-icon" />
             プライバシーポリシー
           </h1>
-          <p className="app-lead">個人情報の取り扱いに関する方針です。</p>
+          <p className="app-lead">
+            本サイトにおける個人情報等の取り扱い方針です。
+          </p>
         </div>
       </section>
 
       <section className="app-card mt-6">
         <div className="space-y-3 text-sm app-text">
+          <div className="font-semibold">取得する情報と利用目的</div>
           <p>
-            本サイトでは、サービスの提供・改善および広告配信のために
-            Cookie等の技術を利用する場合があります。
+            本サイトでは、サービス向上や広告配信のために Cookie 等の技術を利用する場合があります。
           </p>
           <p>
-            Google AdSenseなどの第三者配信事業者はCookieを使用し、ユーザーの過去のアクセス情報に基づいて広告を配信することがあります。
+            Google AdSense などの第三者配信事業者が Cookie を使用し、ユーザーのアクセス情報に基づいた広告を配信することがあります。
           </p>
           <p>
-            アクセス解析のために、閲覧したページや参照元などの情報を収集する場合がありますが、個人を特定する情報を取得することはありません。
+            アクセス解析のために、閲覧したページや参照元などの情報を取得する場合がありますが、個人を特定する情報は取得しません。
           </p>
           <p>
-            取得した情報はサイトの品質向上・利便性改善の目的でのみ利用し、法令に基づく場合を除き第三者へ提供しません。
+            取得した情報はサイトの品質向上・利便性改善の目的にのみ利用し、法令に基づく場合を除き第三者に提供しません。
           </p>
-          <p>
-            外部リンク先のサービスについては当サイトでは責任を負いません。
-          </p>
+          <p>外部リンク先のサービスについては当サイトでは責任を負いません。</p>
           <p>本ポリシーは予告なく変更する場合があります。</p>
           <div className="text-sm app-text">
-            <p>広告のオプトアウト方法</p>
+            <div className="font-semibold">広告のオプトアウト</div>
             <ul className="list-disc ml-5 mt-2 space-y-1">
               <li>
                 <a
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Google広告設定
+                  Google 広告設定
                 </a>
               </li>
               <li>
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Googleアドマネージャーの広告設定
+                  Google アドマネージャーの広告設定
                 </a>
               </li>
               <li>
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  NAIのオプトアウトページ
+                  NAI のオプトアウトページ
                 </a>
               </li>
             </ul>

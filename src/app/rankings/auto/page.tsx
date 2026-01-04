@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
@@ -8,9 +8,9 @@ import { isOpenNow } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
 
 export const metadata: Metadata = {
-  title: "【香川】讃岐うどん総合ランキング",
+  title: "香川 讃岐うどん総合ランキング｜評価×レビュー",
   description:
-    "香川の讃岐うどん人気・おすすめ店をGoogleMapから店情報を自動取得し、評価とレビュー件数で総合ランキング。比較に便利です。",
+    "香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で総合ランキング。比較に便利です。",
   alternates: {
     canonical: "/",
   },
@@ -38,7 +38,10 @@ export default async function AutoRanking({
     where: {
       rating: { not: null },
       userRatingCount: { not: null },
-      OR: [{ address: { contains: "香川県" } }, { address: { contains: "Kagawa" } }],
+      OR: [
+        { address: { contains: "香川県" } },
+        { address: { contains: "Kagawa" } },
+      ],
     },
     select: {
       placeId: true,
@@ -62,7 +65,7 @@ export default async function AutoRanking({
             <p className="app-kicker">Sanuki Udon Ranking</p>
             <h1 className="app-title">
               <UdonIcon className="app-title-icon" />
-              香川県讃岐うどん総合ランキング
+              香川 讃岐うどん総合ランキング
             </h1>
             <p className="app-lead">
               まだ評価データがありません。sync:details を実行してください。
@@ -83,7 +86,9 @@ export default async function AutoRanking({
   });
   const lastSynced = _max.fetchedAt;
   const lastSyncedLabel = lastSynced
-    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
+    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(
+        lastSynced
+      )
     : null;
 
   const C = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
@@ -121,7 +126,7 @@ export default async function AutoRanking({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "香川県讃岐うどん総合ランキング",
+    name: "香川 讃岐うどん総合ランキング",
     itemListElement: paged.map((r, idx) => ({
       "@type": "ListItem",
       position: startIndex + idx + 1,
@@ -169,7 +174,7 @@ export default async function AutoRanking({
           <p className="app-kicker">Sanuki Udon Ranking</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川県讃岐うどん総合ランキング
+            香川 讃岐うどん総合ランキング
           </h1>
           <p className="app-lead">
             香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で総合ランキング。
@@ -187,8 +192,28 @@ export default async function AutoRanking({
         </div>
       </section>
 
+      <section className="app-card mt-6">
+        <div className="space-y-2 text-sm app-text">
+          <div className="font-semibold">このランキングについて</div>
+          <p>
+            Google Maps の評価とレビュー件数をもとに、総合的に比較しやすい順位を作成しています。
+          </p>
+          <p>
+            評価とレビュー件数のバランスを考慮するため、ベイズ平均を使ってスコア化しています。
+          </p>
+          <p>
+            同じ評価でもレビュー件数が多い店は信頼性が高いと考え、順位に反映しています。
+          </p>
+          <p>
+            位置情報は公式サイト等ではなく Google Maps の公開情報を参照するため、最新情報は来店前にご確認ください。
+          </p>
+          <p>更新は定期的に行い、最新に近いランキングを目指します。</p>
+        </div>
+      </section>
+
       <div className="mt-4 text-xs app-muted">
-        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}件/ページ）
+        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}
+        件/ページ）
       </div>
 
       <ol className="mt-4 space-y-4">

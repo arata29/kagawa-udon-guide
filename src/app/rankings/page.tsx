@@ -5,9 +5,9 @@ import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "【香川】讃岐うどんランキング一覧",
+  title: "香川 讃岐うどんランキング一覧｜総合・エリア別",
   description:
-    "香川の讃岐うどん人気・おすすめ店を総合・エリア別ランキングで比較。GoogleMapから店情報を自動取得し、評価とレビュー件数を反映しています。",
+    "香川の讃岐うどん人気・おすすめ店を総合・エリア別ランキングで比較。評価とレビュー件数を反映しています。",
 };
 
 export default async function RankingsHub() {
@@ -78,6 +78,24 @@ export default async function RankingsHub() {
             </span>
             <span className="app-stat-label">最終更新</span>
           </div>
+        </div>
+      </section>
+
+      <section className="app-card mt-6">
+        <div className="space-y-2 text-sm app-text">
+          <div className="font-semibold">ランキングの見方</div>
+          <p>
+            総合ランキングは評価とレビュー件数をもとに比較しやすい順序で並べています。
+          </p>
+          <p>
+            エリア別は地域ごとの人気傾向が分かるため、近場で探したいときに便利です。
+          </p>
+          <p>
+            気になるエリアを先に開き、上位店舗から見ると効率よく比較できます。
+          </p>
+          <p>
+            情報は Google Maps の公開情報を参照しているため、最新の営業状況は来店前にご確認ください。
+          </p>
         </div>
       </section>
 

@@ -6,9 +6,9 @@ import { siteUrl } from "@/lib/site";
 import type { OpeningHours } from "@/lib/openingHours";
 
 export const metadata: Metadata = {
-  title: "【香川】讃岐うどんマップ",
+  title: "香川 讃岐うどんマップ｜地図で探す",
   description:
-    "香川の讃岐うどん人気・おすすめ店をGoogleMapから店情報を自動取得して表示。評価とレビュー件数を見ながら比較できます。",
+    "香川の讃岐うどん人気・おすすめ店を地図で表示。評価とレビュー件数を見ながら比較できます。",
 };
 
 export default async function MapPage() {
@@ -72,6 +72,21 @@ export default async function MapPage() {
             <span className="app-stat-value">{places.length}</span>
             <span className="app-stat-label">店舗</span>
           </div>
+        </div>
+      </section>
+
+      <section className="app-card mt-6">
+        <div className="space-y-2 text-sm app-text">
+          <div className="font-semibold">マップの見方</div>
+          <p>
+            香川の讃岐うどん店を地図で確認できます。評価やレビュー件数を見ながら比較できるのが特徴です。
+          </p>
+          <p>
+            位置関係を把握したいときや、近隣の候補をまとめて見たいときに便利です。
+          </p>
+          <p>
+            店舗情報は Google Maps の公開情報を参照しています。最新情報は公式情報も合わせてご確認ください。
+          </p>
         </div>
       </section>
 
