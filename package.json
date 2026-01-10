@@ -10,8 +10,8 @@
         "postinstall": "prisma generate",
         "sync:places": "tsx scripts/sync_places.ts",
         "export:places": "tsx scripts/export_places_csv.ts",
-        "seed:ranking": "tsx scripts/seed_ranking.ts",
-        "sync:details": "tsx scripts/sync_details.ts"
+        "sync:details": "tsx scripts/sync_details.ts",
+        "delete:places": "tsx scripts/delete_places.ts"
     },
     "dependencies": {
         "@googlemaps/markerclusterer": "^2.5.3",
