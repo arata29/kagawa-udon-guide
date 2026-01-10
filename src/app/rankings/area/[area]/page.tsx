@@ -24,7 +24,7 @@ export async function generateMetadata(props: {
   const areaSuffix = area ? `の${area}` : "";
 
   return {
-    title: `香川 ${areaTitle} 讃岐うどんランキング`,
+    title: `【香川】${areaTitle} 讃岐うどんランキング`,
     description: `${areaTitle}の讃岐うどん人気・おすすめ店をランキングで比較。評価とレビュー件数をもとに掲載しています。`,
     alternates: {
       canonical: `${siteUrl}/rankings/area/${encodeURIComponent(area)}`,

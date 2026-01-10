@@ -6,7 +6,7 @@ import { siteUrl } from "@/lib/site";
 import type { OpeningHours } from "@/lib/openingHours";
 
 export const metadata: Metadata = {
-  title: "香川 讃岐うどんマップ｜地図で探す",
+  title: "【香川】讃岐うどんマップ｜地図で探す",
   description:
     "香川の讃岐うどん人気・おすすめ店を地図で表示。評価とレビュー件数を見ながら比較できます。",
 };
@@ -61,7 +61,7 @@ export default async function MapPage() {
           <p className="app-kicker">Udon Map</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川 讃岐うどん マップ
+            讃岐うどんマップ
           </h1>
           <p className="app-lead">
             香川の讃岐うどん人気・おすすめ店をGoogleMapで探せます。評価やレビュー件数も確認できます。

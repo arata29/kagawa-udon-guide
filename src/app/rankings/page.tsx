@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "香川 讃岐うどんランキング一覧｜総合・エリア別",
+  title: "【香川】讃岐うどんランキング一覧｜総合・エリア別",
   description:
     "香川の讃岐うどん人気・おすすめ店を総合・エリア別ランキングで比較。評価とレビュー件数を反映しています。",
 };
@@ -61,7 +61,7 @@ export default async function RankingsHub() {
           <p className="app-kicker">Ranking Guide</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川 讃岐うどん ランキング一覧
+            讃岐うどんランキング一覧
           </h1>
           <p className="app-lead">
             香川の讃岐うどん人気・おすすめ店をランキングで探せます。

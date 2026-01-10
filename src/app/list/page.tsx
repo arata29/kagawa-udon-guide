@@ -15,7 +15,7 @@ import {
 } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
 
-const listTitle = "香川 讃岐うどん店一覧｜検索・絞り込み";
+const listTitle = "【香川】讃岐うどん店一覧｜検索・絞り込み";
 const listDescription =
   "香川の讃岐うどん人気・おすすめ店を一覧で検索。評価・レビュー件数・エリア・営業時間で絞り込みできます。";
 const listPageSize = 30;
@@ -325,7 +325,7 @@ export default async function ListPage({
           <p className="app-kicker">Sanuki Udon Index</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川 讃岐うどん屋一覧
+            讃岐うどん店一覧
           </h1>
           <p className="app-lead">
             香川の讃岐うどん人気・おすすめ店を一覧で探せます。検索と評価で比較できます。
