@@ -8,7 +8,7 @@ import { isOpenNow } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
 
 export const metadata: Metadata = {
-  title: "香川 讃岐うどん総合ランキング｜評価×レビュー",
+  title: "【香川】讃岐うどん総合ランキング｜評価×レビュー",
   description:
     "香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で総合ランキング。比較に便利です。",
   alternates: {
@@ -65,7 +65,7 @@ export default async function AutoRanking({
             <p className="app-kicker">Sanuki Udon Ranking</p>
             <h1 className="app-title">
               <UdonIcon className="app-title-icon" />
-              香川 讃岐うどん総合ランキング
+              讃岐うどん総合ランキング
             </h1>
             <p className="app-lead">
               まだ評価データがありません。sync:details を実行してください。
@@ -174,7 +174,7 @@ export default async function AutoRanking({
           <p className="app-kicker">Sanuki Udon Ranking</p>
           <h1 className="app-title">
             <UdonIcon className="app-title-icon" />
-            香川 讃岐うどん総合ランキング
+            讃岐うどん総合ランキング
           </h1>
           <p className="app-lead">
             香川の讃岐うどん人気・おすすめ店をGoogleMapの評価とレビュー件数で総合ランキング。
