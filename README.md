@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 香川県うどんランキング
 
-## Getting Started
+香川県の讃岐うどん店をランキング・一覧・地図で比較できるサイトです。
+Google Maps の評価・レビュー件数を利用してランキングを作成しています。
 
-First, run the development server:
+## 主要ページ
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- `/` : 総合ランキング
+- `/rankings` : ランキング一覧（総合/エリア別）
+- `/rankings/area/[area]` : エリア別ランキング
+- `/list` : 一覧検索
+- `/map` : 地図検索
+- `/shops/[placeId]` : 店舗詳細
+- `/about` `/contact` `/privacy` `/terms` : 運営者情報・問い合わせ・ポリシー
+
+## ソース構成（概要）
+
+- `src/app` : Next.js App Router のページ群
+- `src/components` : 共通コンポーネント
+- `src/lib` : Prisma クライアント・ランキング計算・営業時間判定などのユーティリティ
+- `scripts` : データ同期やエクスポートなどのバッチ処理
+- `prisma` : Prisma スキーマとマイグレーション
+- `config` : 判定用 CSV
+- `public` : 画像・ads.txt などの静的ファイル
+
+## スクリプト
+
+すべて `npm run <script>` で実行します。
+
+- `dev` : 開発サーバー起動（Next.js）
+- `build` : 本番ビルド
+- `start` : 本番起動
+- `lint` : ESLint
+- `sync:places` : Google Places Text Search で店舗候補を取得しDBに upsert
+- `sync:details` : Place Details を取得して評価・レビュー・営業時間などを更新
+- `export:places` : `places_kagawa_udon.csv` に店舗情報を出力
+- `delete:places` : Place / PlaceCache の全件削除（確認プロンプトあり）
+
+## DB（Prisma）
+
+- `prisma/schema.prisma` がDB定義
+- `src/lib/prisma.ts` がPrismaクライアント
+- マイグレーションは `prisma/migrations` に保存
+- 代表的なモデル
+  - `Place` : Place ID のマスタ
+  - `PlaceCache` : Places API から取得した表示用データ
+
+### マイグレーションの例
+
+```
+npx prisma migrate dev -n <migration-name>
+npx prisma generate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+本番適用は以下を使用します。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npx prisma migrate deploy
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 判定CSV
 
-## Learn More
+- `config/udon-include.csv` : うどん店の判定キーワード
+- `config/udon-exclude.csv` : うどん店から除外するキーワード
 
-To learn more about Next.js, take a look at the following resources:
+## 環境変数（例）
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+GOOGLE_MAPS_API_KEY=...
+NEXT_PUBLIC_SITE_URL=...
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 注意点
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Places API のデータは変更されるため、営業時間や評価は最新ではない場合があります。
+- `sync:details` はAPIクレジットを消費します。必要に応じて件数やスリープ時間を調整してください。
+- `delete:places` は全件削除です。実行時は確認プロンプトがあります。
