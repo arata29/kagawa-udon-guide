@@ -67,7 +67,6 @@ type Details = {
   rating?: number;
   userRatingCount?: number;
   googleMapsUri?: string;
-  types?: string[];
 
   regularOpeningHours?: {
     periods?: {
@@ -89,7 +88,7 @@ async function fetchDetails(placeId: string): Promise<Details | null> {
 
   // FieldMask は必要なものだけ
   const fieldMaskBase =
-    "id,displayName,formattedAddress,location,rating,userRatingCount,googleMapsUri,types,regularOpeningHours,utcOffsetMinutes";
+    "id,displayName,formattedAddress,location,rating,userRatingCount,googleMapsUri,regularOpeningHours,utcOffsetMinutes";
   const fieldMask = USE_REVIEWS ? `${fieldMaskBase},reviews` : fieldMaskBase;
 
   const res = await fetch(url, {
@@ -242,26 +241,52 @@ async function main() {
   // ここは「負荷とクレジット」を見て調整
   const TAKE = Number(process.env.SYNC_DETAILS_TAKE ?? "1000");
   const SLEEP_MS = Number(process.env.SYNC_DETAILS_SLEEP_MS ?? "120");
+  const MIN_AGE_DAYS = Number(process.env.SYNC_DETAILS_MIN_AGE_DAYS ?? "14");
 
   // 対象は最新に見えたものから（isHidden=false を優先）
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - MIN_AGE_DAYS * 24 * 60 * 60 * 1000);
   const targets = await prisma.place.findMany({
-    where: { isHidden: false },
+    where: {
+      isHidden: false,
+      OR: [
+        { cache: { is: null } },
+        { cache: { is: { fetchedAt: { lt: cutoff } } } },
+      ],
+    },
     orderBy: { lastSeenAt: "desc" },
     take: TAKE,
-    select: { placeId: true },
+    select: {
+      placeId: true,
+      cache: { select: { fetchedAt: true, types: true } },
+    },
   });
 
-  const now = new Date();
   let ok = 0;
   let ng = 0;
   let skipped = 0;
   let invalid = 0;
   let warnTentative = 0;
+  let skippedRecent = 0;
 
   // max clients に当たりやすいので、直列実行＋sleepで圧を下げる
   for (let i = 0; i < targets.length; i++) {
     const t = targets[i];
     const placeId = t.placeId;
+    const cachedAt = t.cache?.fetchedAt ?? null;
+    if (cachedAt && cachedAt >= cutoff) {
+      skippedRecent++;
+      logger.write({
+        level: "INFO",
+        event: "SKIP_RECENT",
+        ts: now.toISOString(),
+        idx: i + 1,
+        total: targets.length,
+        placeId,
+        fetchedAt: cachedAt.toISOString(),
+      });
+      continue;
+    }
 
     try {
       const d = await fetchDetails(placeId);
@@ -283,10 +308,11 @@ async function main() {
       const addr = d.formattedAddress ?? null;
       const area = extractArea(addr);
 
+      const cachedTypes = t.cache?.types ?? [];
       const c = udonClassifier.classify({
         placeId,
         name,
-        types: d.types ?? [],
+        types: cachedTypes,
         address: addr,
       });
 
@@ -299,7 +325,7 @@ async function main() {
         name,
         address: addr,
         area,
-        types: d.types ?? [],
+        types: cachedTypes,
         rating: d.rating ?? null,
         userRatingCount: d.userRatingCount ?? null,
         classify: {
@@ -368,7 +394,7 @@ async function main() {
           area,
           lat: d.location?.latitude ?? null,
           lng: d.location?.longitude ?? null,
-          types: d.types ?? [],
+          types: cachedTypes,
           rating: d.rating ?? null,
           userRatingCount: d.userRatingCount ?? null,
           googleMapsUri: d.googleMapsUri ?? null,
@@ -384,7 +410,7 @@ async function main() {
           area,
           lat: d.location?.latitude ?? null,
           lng: d.location?.longitude ?? null,
-          types: d.types ?? [],
+          types: cachedTypes,
           rating: d.rating ?? null,
           userRatingCount: d.userRatingCount ?? null,
           googleMapsUri: d.googleMapsUri ?? null,
@@ -421,9 +447,11 @@ async function main() {
     skipped,
     invalid,
     warnTentative,
+    skippedRecent,
     total: targets.length,
     logFile: logger.file,
     useReviews: USE_REVIEWS,
+    minAgeDays: MIN_AGE_DAYS,
   };
 
   console.log(JSON.stringify(summary, null, 2));

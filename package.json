@@ -9,7 +9,6 @@
         "lint": "eslint",
         "postinstall": "prisma generate",
         "sync:places": "tsx scripts/sync_places.ts",
-        "export:places": "tsx scripts/export_places_csv.ts",
         "sync:details": "tsx scripts/sync_details.ts",
         "delete:places": "tsx scripts/delete_places.ts"
     },

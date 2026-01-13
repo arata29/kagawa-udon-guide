@@ -88,6 +88,8 @@ async function main() {
 
   const now = new Date();
   let insertedOrUpdated = 0;
+  let skippedExisting = 0;
+  const FULL_UPDATE = process.env.SYNC_PLACES_FULL === "1";
 
   // place_id で重複排除
   const map = new Map<string, Place>();
@@ -110,32 +112,64 @@ async function main() {
     }
   }
 
-  // DBへ upsert
+  const ids = Array.from(map.keys());
+  const existing = await prisma.place.findMany({
+    where: { placeId: { in: ids } },
+    select: { placeId: true },
+  });
+  const existingIds = new Set(existing.map((e) => e.placeId));
+
+  // DBへ insert（新規のみ） / FULL_UPDATE=1 のときは既存も更新
   for (const p of map.values()) {
     const placeId = p.id;
+    if (!FULL_UPDATE && existingIds.has(placeId)) {
+      skippedExisting++;
+      continue;
+    }
+
     const name = p.displayName?.text ?? "(no name)";
     const address = p.formattedAddress ?? null;
     const lat = p.location?.latitude ?? null;
     const lng = p.location?.longitude ?? null;
     const types = p.types ?? [];
 
-    await prisma.place.upsert({
-      where: { placeId },
-      create: { placeId, firstSeenAt: now, lastSeenAt: now },
-      update: { lastSeenAt: now, isHidden: false },
-    });
+    const hasPlaceCache = existingIds.has(placeId);
+    if (hasPlaceCache) {
+      await prisma.place.update({
+        where: { placeId },
+        data: { lastSeenAt: now, isHidden: false },
+      });
 
-    await prisma.placeCache.upsert({
-      where: { placeId },
-      create: { placeId, name, address, lat, lng, types, fetchedAt: now },
-      update: { name, address, lat, lng, types, fetchedAt: now },
-    });
+      await prisma.placeCache.upsert({
+        where: { placeId },
+        create: { placeId, name, address, lat, lng, types, fetchedAt: now },
+        update: { name, address, lat, lng, types, fetchedAt: now },
+      });
+    } else {
+      await prisma.place.create({
+        data: { placeId, firstSeenAt: now, lastSeenAt: now, isHidden: false },
+      });
+
+      await prisma.placeCache.create({
+        data: { placeId, name, address, lat, lng, types, fetchedAt: now },
+      });
+    }
 
     insertedOrUpdated++;
   }
 
   console.log(
-    JSON.stringify({ ok: true, uniquePlaces: map.size, insertedOrUpdated }, null, 2)
+    JSON.stringify(
+      {
+        ok: true,
+        uniquePlaces: map.size,
+        insertedOrUpdated,
+        skippedExisting,
+        fullUpdate: FULL_UPDATE,
+      },
+      null,
+      2
+    )
   );
 }
 

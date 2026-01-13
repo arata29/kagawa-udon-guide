@@ -31,9 +31,8 @@ Google Maps の評価・レビュー件数を利用してランキングを作�
 - `build` : 本番ビルド
 - `start` : 本番起動
 - `lint` : ESLint
-- `sync:places` : Google Places Text Search で店舗候補を取得しDBに upsert
-- `sync:details` : Place Details を取得して評価・レビュー・営業時間などを更新
-- `export:places` : `places_kagawa_udon.csv` に店舗情報を出力
+- `sync:places` : Google Places Text Search で店舗候補を取得（新規のみ追加）
+- `sync:details` : Place Details を取得して評価・レビュー・営業時間などを更新（直近更新はスキップ）
 - `delete:places` : Place / PlaceCache の全件削除（確認プロンプトあり）
 
 ## DB（Prisma）
@@ -68,10 +67,16 @@ npx prisma migrate deploy
 ```
 GOOGLE_MAPS_API_KEY=...
 NEXT_PUBLIC_SITE_URL=...
+SYNC_DETAILS_MIN_AGE_DAYS=14
+SYNC_DETAILS_TAKE=1000
+SYNC_DETAILS_SLEEP_MS=120
+SYNC_PLACES_FULL=0
 ```
 
 ## 注意点
 
 - Places API のデータは変更されるため、営業時間や評価は最新ではない場合があります。
 - `sync:details` はAPIクレジットを消費します。必要に応じて件数やスリープ時間を調整してください。
+- `SYNC_DETAILS_MIN_AGE_DAYS` を短くすると更新頻度は上がりますが、API使用量も増えます。
+- `sync:places` は通常は新規のみ追加です。月1回などで `SYNC_PLACES_FULL=1` にすると既存の住所/種別も更新できます。
 - `delete:places` は全件削除です。実行時は確認プロンプトがあります。
