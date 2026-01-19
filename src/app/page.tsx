@@ -15,5 +15,5 @@ export default async function Home({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  return <AutoRanking searchParams={searchParams} />;
+  return <AutoRanking searchParams={searchParams} basePath="" />;
 }

@@ -14,13 +14,21 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default async function AutoRanking({
   searchParams,
+  basePath,
 }: {
   searchParams: Promise<{ page?: string }>;
+  basePath?: string;
 }) {
+  const pageBase = basePath && basePath.length > 0 ? basePath : "/";
+  const pageHref = (p: number) => `${pageBase}?page=${p}`;
   const buildPageList = (current: number, total: number) => {
     const pages = new Set<number>();
     pages.add(1);
@@ -285,7 +293,7 @@ export default async function AutoRanking({
           className={`app-button app-button--ghost ${
             currentPage <= 1 ? "pointer-events-none opacity-50" : ""
           }`}
-          href={`/rankings/auto?page=${prevPage}`}
+          href={pageHref(prevPage)}
         >
           ← 前へ
         </Link>
@@ -302,7 +310,7 @@ export default async function AutoRanking({
                 ) : (
                   <Link
                     className="app-button app-button--ghost"
-                    href={`/rankings/auto?page=${p}`}
+                    href={pageHref(p)}
                   >
                     {p}
                   </Link>
@@ -319,7 +327,7 @@ export default async function AutoRanking({
           className={`app-button app-button--ghost ${
             currentPage >= totalPages ? "pointer-events-none opacity-50" : ""
           }`}
-          href={`/rankings/auto?page=${nextPage}`}
+          href={pageHref(nextPage)}
         >
           次へ →
         </Link>
