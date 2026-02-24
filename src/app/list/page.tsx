@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { cache } from "react";
 import UdonIcon from "@/components/UdonIcon";
+import Breadcrumb from "@/components/Breadcrumb";
 import OpenHoursFilter from "@/app/list/OpenHoursFilter";
 import { siteUrl } from "@/lib/site";
 import {
@@ -262,13 +263,7 @@ export default async function ListPage({
       "@type": "ListItem",
       position: idx + 1,
       name: p.name,
-      url:
-        p.googleMapsUri ??
-        (p.lat != null && p.lng != null
-          ? `https://www.google.com/maps?q=${p.lat},${p.lng}&z=16`
-          : `https://www.google.com/maps?q=${encodeURIComponent(
-              `${p.name} ${p.address ?? ""}`
-            )}&z=16`),
+      url: `${siteUrl}/shops/${encodeURIComponent(p.placeId)}`,
     })),
   };
   const breadcrumbJsonLd = {
@@ -320,6 +315,10 @@ export default async function ListPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <Breadcrumb items={[
+        { label: "ホーム", href: "/" },
+        { label: "一覧" },
+      ]} />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Sanuki Udon Index</p>
@@ -347,7 +346,7 @@ export default async function ListPage({
 
       <section className="app-card mt-6">
         <div className="space-y-2 text-sm app-text">
-          <div className="font-semibold">一覧の使い方</div>
+          <h2 className="text-base font-semibold">一覧の使い方</h2>
           <p>
             店名・住所で検索し、評価やレビュー件数、エリアで絞り込めます。複数条件を組み合わせて比較するのがおすすめです。
           </p>
@@ -486,7 +485,12 @@ export default async function ListPage({
           <li key={p.placeId} className="app-card">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="min-w-0">
-                <div className="font-semibold break-words">{p.name}</div>
+                <Link
+                  href={`/shops/${encodeURIComponent(p.placeId)}`}
+                  className="font-semibold break-words underline"
+                >
+                  {p.name}
+                </Link>
 
                     {p.address && (
                       <div className="mt-1 text-sm app-muted break-words">
@@ -517,6 +521,12 @@ export default async function ListPage({
               </div>
 
                   <div className="flex gap-2 sm:flex-col sm:items-end">
+                    <Link
+                      href={`/shops/${encodeURIComponent(p.placeId)}`}
+                      className="app-button"
+                    >
+                      詳細
+                    </Link>
                     <a
                       href={openMapsUrl}
                       target="_blank"

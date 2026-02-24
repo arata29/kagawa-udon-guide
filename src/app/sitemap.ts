@@ -3,17 +3,20 @@ import { prisma } from "@/lib/prisma";
 import { siteUrl } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [{ _max }, areas] = await Promise.all([
+  const [{ _max }, areas, shops] = await Promise.all([
     prisma.placeCache.aggregate({ _max: { fetchedAt: true } }),
     prisma.placeCache.findMany({
       where: { area: { not: null } },
       distinct: ["area"],
       select: { area: true },
     }),
+    prisma.placeCache.findMany({
+      select: { placeId: true, fetchedAt: true },
+    }),
   ]);
 
   const lastFetchedAt = _max.fetchedAt ?? new Date();
-  const staticLastModified = new Date("2025-12-22");
+  const staticLastModified = new Date("2026-02-24");
 
   const areaEntries = areas
     .map((a) => (a.area ?? "").trim())
@@ -75,5 +78,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.3,
     },
     ...areaEntries,
+    ...shops.map((s) => ({
+      url: `${siteUrl}/shops/${encodeURIComponent(s.placeId)}`,
+      lastModified: s.fetchedAt ?? lastFetchedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.5,
+    })),
   ];
 }

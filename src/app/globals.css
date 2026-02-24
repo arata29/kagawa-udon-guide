@@ -602,6 +602,20 @@ textarea::placeholder {
   }
 }
 
+/* Section headings inside content cards */
+.app-card h2 {
+  color: var(--accent-2);
+}
+
+/* Date / policy revision footer inside cards */
+.app-policy-date {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 /* Google Maps UI: prevent SVG icons (close button) from collapsing */
 .gm-style svg,
 .gm-style img {

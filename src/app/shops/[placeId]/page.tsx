@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import UdonIcon from "@/components/UdonIcon";
+import Breadcrumb from "@/components/Breadcrumb";
 import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site";
+import type { OpeningHours } from "@/lib/openingHours";
 
 export async function generateMetadata(props: {
-  params: { placeId?: string };
+  params: Promise<{ placeId?: string }>;
 }): Promise<Metadata> {
-  const placeId = props.params.placeId;
+  const { placeId } = await props.params;
   if (!placeId) {
     return {
       title: "店舗が見つかりません",
@@ -27,9 +29,14 @@ export async function generateMetadata(props: {
   }
 
   const title = `${place.name} | 香川県うどんランキング`;
+  const infoParts: string[] = [];
+  if (place.rating != null) infoParts.push(`★${place.rating}`);
+  if (place.userRatingCount != null) infoParts.push(`${place.userRatingCount}件のレビュー`);
+  if (place.area) infoParts.push(place.area);
+  const infoStr = infoParts.length > 0 ? `（${infoParts.join(" / ")}）` : "";
   const description = place.address
-    ? `${place.address}にある${place.name}の店舗情報。`
-    : `${place.name}の店舗情報。`;
+    ? `${place.address}にある${place.name}の店舗情報${infoStr}。営業時間・地図を確認できます。`
+    : `${place.name}の店舗情報${infoStr}。営業時間・地図を確認できます。`;
   const url = `${siteUrl}/shops/${encodeURIComponent(place.placeId)}`;
 
   return {
@@ -111,6 +118,22 @@ export default async function ShopDetail(props: {
           `${place.name} ${place.address ?? ""}`
         )}&z=16`);
 
+  const placeOpeningHours = place.openingHours as OpeningHours | null;
+  const openingHoursSpecification = (() => {
+    const periods = placeOpeningHours?.periods;
+    if (!periods || periods.length === 0) return undefined;
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const specs = periods
+      .filter((p) => p.open?.day != null && p.close?.day != null)
+      .map((p) => ({
+        "@type": "OpeningHoursSpecification" as const,
+        dayOfWeek: `https://schema.org/${dayNames[p.open!.day!]}`,
+        opens: `${String(p.open!.hour ?? 0).padStart(2, "0")}:${String(p.open!.minute ?? 0).padStart(2, "0")}`,
+        closes: `${String(p.close!.hour ?? 0).padStart(2, "0")}:${String(p.close!.minute ?? 0).padStart(2, "0")}`,
+      }));
+    return specs.length > 0 ? specs : undefined;
+  })();
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Restaurant",
@@ -141,6 +164,7 @@ export default async function ShopDetail(props: {
           }
         : undefined,
     sameAs: place.googleMapsUri ?? undefined,
+    openingHoursSpecification,
   };
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -172,6 +196,11 @@ export default async function ShopDetail(props: {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <Breadcrumb items={[
+        { label: "ホーム", href: "/" },
+        { label: "一覧", href: "/list" },
+        { label: place.name },
+      ]} />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Shop Detail</p>
@@ -193,9 +222,14 @@ export default async function ShopDetail(props: {
                 {place.userRatingCount}件
               </span>
             )}
-            {place.types?.length ? (
-              <span className="app-badge">{place.types.slice(0, 5).join(", ")}</span>
-            ) : null}
+            {place.area && (
+              <Link
+                href={`/rankings/area/${encodeURIComponent(place.area)}`}
+                className="app-badge"
+              >
+                {place.area}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -224,24 +258,24 @@ export default async function ShopDetail(props: {
         />
       </div>
 
-      {/*
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold">レビュー要約</h2>
-        {reviewBullets.length ? (
-          <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-1">
-            {reviewBullets.map((b, i) => (
-              <li key={i}>{b}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-gray-500">
-            まだ要約データがありません。sync:details 実行後に表示されます。
-          </p>
-        )}
-      </section>
-      */}
+      {(() => {
+        const descriptions = placeOpeningHours?.weekdayDescriptions;
+        if (!descriptions || descriptions.length === 0) return null;
+        return (
+          <div className="mt-6 app-card">
+            <h2 className="text-sm font-semibold mb-3">営業時間</h2>
+            <ul className="text-sm space-y-1 app-text">
+              {descriptions.map((d, i) => (
+                <li key={i}>{d}</li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs app-muted">
+              ※ Google Maps の情報を参照しています。来店前に最新情報をご確認ください。
+            </p>
+          </div>
+        );
+      })()}
 
-      <div className="mt-8 text-xs app-muted">place_id: {place.placeId}</div>
     </main>
   );
 }
