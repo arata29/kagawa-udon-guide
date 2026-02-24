@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import MapClient from "./MapClient";
 import UdonIcon from "@/components/UdonIcon";
+import Breadcrumb from "@/components/Breadcrumb";
 import { siteUrl } from "@/lib/site";
 import type { OpeningHours } from "@/lib/openingHours";
 
@@ -56,6 +57,7 @@ export default async function MapPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <Breadcrumb items={[{ label: "ホーム", href: "/" }, { label: "マップ" }]} />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Udon Map</p>
@@ -77,7 +79,7 @@ export default async function MapPage() {
 
       <section className="app-card mt-6">
         <div className="space-y-2 text-sm app-text">
-          <div className="font-semibold">マップの見方</div>
+          <h2 className="text-base font-semibold">マップの見方</h2>
           <p>
             香川の讃岐うどん店を地図で確認できます。評価やレビュー件数を見ながら比較できるのが特徴です。
           </p>

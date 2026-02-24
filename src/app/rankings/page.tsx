@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import UdonIcon from "@/components/UdonIcon";
+import Breadcrumb from "@/components/Breadcrumb";
 import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site";
 
@@ -56,6 +57,7 @@ export default async function RankingsHub() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <Breadcrumb items={[{ label: "ホーム", href: "/" }, { label: "ランキング" }]} />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Ranking Guide</p>
@@ -83,7 +85,7 @@ export default async function RankingsHub() {
 
       <section className="app-card mt-6">
         <div className="space-y-2 text-sm app-text">
-          <div className="font-semibold">ランキングの見方</div>
+          <h2 className="text-base font-semibold">ランキングの見方</h2>
           <p>
             総合ランキングは評価とレビュー件数をもとに比較しやすい順序で並べています。
           </p>
@@ -103,7 +105,7 @@ export default async function RankingsHub() {
         <section className="app-card">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <div className="font-semibold">総合ランキング</div>
+              <h2 className="font-semibold">総合ランキング</h2>
               <div className="mt-1 text-sm app-muted">
                 香川の讃岐うどん人気・おすすめ店を総合ランキングで紹介しています。
               </div>
@@ -118,7 +120,7 @@ export default async function RankingsHub() {
         <section className="app-card">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <div className="font-semibold">エリア別ランキング</div>
+              <h2 className="font-semibold">エリア別ランキング</h2>
               <div className="mt-1 text-sm app-muted">
                 エリアごとの讃岐うどんランキングを比較できます。
               </div>

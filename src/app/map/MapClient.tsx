@@ -147,12 +147,22 @@ function createMapMarker(
   return new window.google.maps.Marker({ position, title });
 }
 
-function getMarkerClickEvent(marker: MapMarker) {
+function attachMarkerClickListener(marker: MapMarker, handler: () => void) {
   const AdvancedMarker = window.google.maps.marker?.AdvancedMarkerElement;
   if (AdvancedMarker && marker instanceof AdvancedMarker) {
-    return "gmp-click";
+    marker.addListener("gmp-click", handler);
+  } else {
+    (marker as google.maps.Marker).addListener("click", handler);
   }
-  return "click";
+}
+
+function attachMarkerHoverListener(marker: MapMarker, handler: () => void) {
+  const AdvancedMarker = window.google.maps.marker?.AdvancedMarkerElement;
+  if (AdvancedMarker && marker instanceof AdvancedMarker) {
+    (marker as unknown as HTMLElement).addEventListener("mouseenter", handler);
+  } else {
+    (marker as google.maps.Marker).addListener("mouseover", handler);
+  }
 }
 
 function getOpenDays(value: unknown): number[] | null {
@@ -420,7 +430,12 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
 
           markersRef.current.set(p.placeId, marker);
 
-          marker.addListener(getMarkerClickEvent(marker), () => {
+          attachMarkerClickListener(marker, () => {
+            setSelectedId(p.placeId);
+            openInfoWindow(p);
+          });
+
+          attachMarkerHoverListener(marker, () => {
             setSelectedId(p.placeId);
             openInfoWindow(p);
           });
@@ -481,6 +496,8 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
         ? !openDays.includes(todayIndex)
         : isClosedOnDay(place.openingHours, todayIndex);
 
+    const detailUrl = `/shops/${encodeURIComponent(place.placeId)}`;
+
     infoWindow.setContent(
       `<div style="max-width:240px;background:#fffaf1;border-radius:14px;padding:8px 10px 10px;border:1px solid rgba(201,106,42,0.25);box-shadow:0 12px 30px rgba(90,60,40,0.18);font-size:12px;line-height:1.5;">
         <div style="font-size:13px;font-weight:600;color:#1f2a2e;margin-bottom:4px;word-break:break-word;">
@@ -509,9 +526,14 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
               : ""
           }
         </div>
-        <a href="${openUrl}" target="_blank" rel="noreferrer" style="color:#1f6f78;text-decoration:underline;">
-          Googleマップを開く
-        </a>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="${detailUrl}" style="color:#c96a2a;font-weight:600;text-decoration:none;">
+            詳細を見る →
+          </a>
+          <a href="${openUrl}" target="_blank" rel="noreferrer" style="color:#1f6f78;text-decoration:underline;">
+            Googleマップ
+          </a>
+        </div>
       </div>`
     );
 

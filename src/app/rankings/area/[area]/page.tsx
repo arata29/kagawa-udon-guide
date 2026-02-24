@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
 import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
+import Breadcrumb from "@/components/Breadcrumb";
 import { siteUrl } from "@/lib/site";
 import { isOpenNow } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
@@ -163,13 +164,7 @@ export default async function AreaRanking(props: {
       "@type": "ListItem",
       position: startIndex + idx + 1,
       name: r.name,
-      url:
-        r.googleMapsUri ??
-        (r.lat != null && r.lng != null
-          ? `https://www.google.com/maps?q=${r.lat},${r.lng}&z=16`
-          : `https://www.google.com/maps?q=${encodeURIComponent(
-              `${r.name} ${r.address ?? ""}`
-            )}&z=16`),
+      url: `${siteUrl}/shops/${encodeURIComponent(r.placeId)}`,
     })),
   };
   const breadcrumbJsonLd = {
@@ -202,6 +197,11 @@ export default async function AreaRanking(props: {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <Breadcrumb items={[
+        { label: "ホーム", href: "/" },
+        { label: "ランキング", href: "/rankings" },
+        { label: `${area}のランキング` },
+      ]} />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Area Ranking</p>
@@ -232,7 +232,7 @@ export default async function AreaRanking(props: {
 
       <section className="app-card mt-6">
         <div className="space-y-2 text-sm app-text">
-          <div className="font-semibold">エリアランキングの見方</div>
+          <h2 className="text-base font-semibold">エリアランキングの見方</h2>
           <p>
             {area}で営業する讃岐うどん店を、評価とレビュー件数をもとに並べています。
           </p>
@@ -274,7 +274,12 @@ export default async function AreaRanking(props: {
                     <span className="app-badge app-badge--accent">
                       #{startIndex + idx + 1}
                     </span>
-                    <div className="font-semibold break-words">{r.name}</div>
+                    <Link
+                      href={`/shops/${encodeURIComponent(r.placeId)}`}
+                      className="font-semibold break-words underline"
+                    >
+                      {r.name}
+                    </Link>
                   </div>
 
                   {r.address && (
@@ -297,6 +302,12 @@ export default async function AreaRanking(props: {
                 </div>
 
                 <div className="flex flex-col gap-2 shrink-0">
+                  <Link
+                    className="app-button"
+                    href={`/shops/${encodeURIComponent(r.placeId)}`}
+                  >
+                    詳細
+                  </Link>
                   <a
                     className="app-button app-button--ghost"
                     href={openMapsUrl}

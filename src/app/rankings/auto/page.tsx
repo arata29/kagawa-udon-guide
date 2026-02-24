@@ -23,9 +23,11 @@ export const metadata: Metadata = {
 export default async function AutoRanking({
   searchParams,
   basePath,
+  showSiteIntro,
 }: {
   searchParams: Promise<{ page?: string }>;
   basePath?: string;
+  showSiteIntro?: boolean;
 }) {
   const pageBase = basePath && basePath.length > 0 ? basePath : "/";
   const pageHref = (p: number) => `${pageBase}?page=${p}`;
@@ -139,13 +141,7 @@ export default async function AutoRanking({
       "@type": "ListItem",
       position: startIndex + idx + 1,
       name: r.name,
-      url:
-        r.googleMapsUri ??
-        (r.lat != null && r.lng != null
-          ? `https://www.google.com/maps?q=${r.lat},${r.lng}&z=16`
-          : `https://www.google.com/maps?q=${encodeURIComponent(
-              `${r.name} ${r.address ?? ""}`
-            )}&z=16`),
+      url: `${siteUrl}/shops/${encodeURIComponent(r.placeId)}`,
     })),
   };
   const breadcrumbJsonLd = {
@@ -202,7 +198,7 @@ export default async function AutoRanking({
 
       <section className="app-card mt-6">
         <div className="space-y-2 text-sm app-text">
-          <div className="font-semibold">このランキングについて</div>
+          <h2 className="text-base font-semibold">このランキングについて</h2>
           <p>
             Google Maps の評価とレビュー件数をもとに、総合的に比較しやすい順位を作成しています。
           </p>
@@ -218,6 +214,30 @@ export default async function AutoRanking({
           <p>更新は定期的に行い、最新に近いランキングを目指します。</p>
         </div>
       </section>
+
+      {showSiteIntro && (
+        <section className="app-card mt-6">
+          <h2 className="text-sm font-semibold mb-3">このサイトでできること</h2>
+          <ul className="space-y-2 text-sm app-text">
+            <li>
+              <Link className="underline" href="/">総合ランキング</Link>
+              — 香川全域のうどん店をベイズ平均スコアで順位付け
+            </li>
+            <li>
+              <Link className="underline" href="/rankings">エリア別ランキング</Link>
+              — 高松・丸亀・坂出など地区ごとの人気店を比較
+            </li>
+            <li>
+              <Link className="underline" href="/list">店舗一覧・検索</Link>
+              — 評価・レビュー件数・営業時間・エリアで絞り込み
+            </li>
+            <li>
+              <Link className="underline" href="/map">マップ</Link>
+              — 香川県内のうどん店を地図上で一覧表示
+            </li>
+          </ul>
+        </section>
+      )}
 
       <div className="mt-4 text-xs app-muted">
         表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}
@@ -246,7 +266,12 @@ export default async function AutoRanking({
                     <span className="app-badge app-badge--accent">
                       #{startIndex + idx + 1}
                     </span>
-                    <div className="font-semibold break-words">{r.name}</div>
+                    <Link
+                      href={`/shops/${encodeURIComponent(r.placeId)}`}
+                      className="font-semibold break-words underline"
+                    >
+                      {r.name}
+                    </Link>
                   </div>
 
                   {r.address && (
@@ -267,12 +292,15 @@ export default async function AutoRanking({
                     )}
                   </div>
 
-                  <div className="mt-2 text-xs app-muted">
-                    score: {r.score.toFixed(3)}
-                  </div>
                 </div>
 
                 <div className="flex flex-col gap-2 shrink-0">
+                  <Link
+                    className="app-button"
+                    href={`/shops/${encodeURIComponent(r.placeId)}`}
+                  >
+                    詳細
+                  </Link>
                   <a
                     className="app-button app-button--ghost"
                     href={openMapsUrl}
