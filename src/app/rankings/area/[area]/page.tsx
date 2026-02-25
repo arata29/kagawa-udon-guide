@@ -4,9 +4,30 @@ import { bayesScore } from "@/lib/ranking";
 import type { Metadata } from "next";
 import UdonIcon from "@/components/UdonIcon";
 import Breadcrumb from "@/components/Breadcrumb";
+import FavoriteButton from "@/components/FavoriteButton";
 import { siteUrl } from "@/lib/site";
 import { isOpenNow } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
+import { safeDbQuery } from "@/lib/db";
+
+type AreaScoreRow = {
+  placeId: string;
+  rating: number | null;
+  userRatingCount: number | null;
+};
+
+type AreaDetailRow = {
+  placeId: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  rating: number | null;
+  userRatingCount: number | null;
+  googleMapsUri: string | null;
+  openingHours: unknown;
+  utcOffsetMinutes: number | null;
+};
 
 function safeDecode(value: string) {
   try {
@@ -16,13 +37,36 @@ function safeDecode(value: string) {
   }
 }
 
+function AreaDbError({ area }: { area: string }) {
+  return (
+    <main className="app-shell page-in">
+      <section className="app-hero">
+        <div>
+          <p className="app-kicker">Area Ranking</p>
+          <h1 className="app-title">
+            <UdonIcon className="app-title-icon" />
+            {area}のランキング
+          </h1>
+          <p className="app-lead">
+            データベースに接続できないため、ランキングを表示できませんでした。
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="app-button app-button--ghost" href="/rankings">
+              ランキング一覧へ
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export async function generateMetadata(props: {
   params: Promise<{ area: string }>;
 }): Promise<Metadata> {
   const { area: rawArea } = await props.params;
   const area = safeDecode(rawArea).trim();
   const areaTitle = area || "香川";
-  const areaSuffix = area ? `の${area}` : "";
 
   return {
     title: `【香川】${areaTitle} 讃岐うどんランキング`,
@@ -74,27 +118,28 @@ export default async function AreaRanking(props: {
     );
   }
 
-  const rows = await prisma.placeCache.findMany({
-    where: {
-      rating: { not: null },
-      userRatingCount: { not: null },
-      area,
-    },
-    select: {
-      placeId: true,
-      name: true,
-      address: true,
-      lat: true,
-      lng: true,
-      rating: true,
-      userRatingCount: true,
-      googleMapsUri: true,
-      openingHours: true,
-      utcOffsetMinutes: true,
-    },
-  });
+  let scoreRows: AreaScoreRow[] = [];
+  const scoreResult = await safeDbQuery("area ranking scores", () =>
+    prisma.placeCache.findMany({
+      where: {
+        rating: { not: null },
+        userRatingCount: { not: null },
+        area,
+      },
+      select: {
+        placeId: true,
+        rating: true,
+        userRatingCount: true,
+      },
+    })
+  );
+  if (scoreResult.ok) {
+    scoreRows = scoreResult.data;
+  } else {
+    return <AreaDbError area={area} />;
+  }
 
-  if (rows.length === 0) {
+  if (scoreRows.length === 0) {
     return (
       <main className="app-shell page-in">
         <section className="app-hero">
@@ -116,18 +161,9 @@ export default async function AreaRanking(props: {
     );
   }
 
-  const C = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
+  const C = scoreRows.reduce((s, r) => s + (r.rating ?? 0), 0) / scoreRows.length;
   const m = 50;
-
-  const { _max } = await prisma.placeCache.aggregate({
-    _max: { fetchedAt: true },
-  });
-  const lastSynced = _max.fetchedAt;
-  const lastSyncedLabel = lastSynced
-    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
-    : null;
-
-  const ranked = rows
+  const rankedScores = scoreRows
     .map((r) => {
       const R = r.rating ?? 0;
       const v = r.userRatingCount ?? 0;
@@ -147,14 +183,59 @@ export default async function AreaRanking(props: {
     });
 
   const perPage = 50;
-  const totalPages = Math.max(1, Math.ceil(ranked.length / perPage));
+  const totalPages = Math.max(1, Math.ceil(rankedScores.length / perPage));
   const currentPage = Math.min(totalPages, page);
   const startIndex = (currentPage - 1) * perPage;
-  const endIndex = Math.min(startIndex + perPage, ranked.length);
-  const paged = ranked.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + perPage, rankedScores.length);
+  const pagedScores = rankedScores.slice(startIndex, endIndex);
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const pageList = buildPageList(currentPage, totalPages);
+  const pageIds = pagedScores.map((r) => r.placeId);
+
+  let details: AreaDetailRow[] = [];
+  let lastSynced: Date | null = null;
+  const detailsResult = await safeDbQuery("area ranking details", () =>
+    Promise.all([
+      prisma.placeCache.findMany({
+        where: { placeId: { in: pageIds } },
+        select: {
+          placeId: true,
+          name: true,
+          address: true,
+          lat: true,
+          lng: true,
+          rating: true,
+          userRatingCount: true,
+          googleMapsUri: true,
+          openingHours: true,
+          utcOffsetMinutes: true,
+        },
+      }),
+      prisma.placeCache.aggregate({
+        _max: { fetchedAt: true },
+      }),
+    ])
+  );
+  if (!detailsResult.ok) {
+    return <AreaDbError area={area} />;
+  }
+  const [detailRows, { _max }] = detailsResult.data;
+  details = detailRows;
+  lastSynced = _max.fetchedAt;
+
+  const detailsMap = new Map(details.map((r) => [r.placeId, r]));
+  const paged = pagedScores
+    .map((score) => {
+      const detail = detailsMap.get(score.placeId);
+      if (!detail) return null;
+      return { ...detail, score: score.score };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+
+  const lastSyncedLabel = lastSynced
+    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
+    : null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -197,11 +278,13 @@ export default async function AreaRanking(props: {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <Breadcrumb items={[
-        { label: "ホーム", href: "/" },
-        { label: "ランキング", href: "/rankings" },
-        { label: `${area}のランキング` },
-      ]} />
+      <Breadcrumb
+        items={[
+          { label: "ホーム", href: "/" },
+          { label: "ランキング", href: "/rankings" },
+          { label: `${area}のランキング` },
+        ]}
+      />
       <section className="app-hero">
         <div>
           <p className="app-kicker">Area Ranking</p>
@@ -220,7 +303,7 @@ export default async function AreaRanking(props: {
         </div>
         <div className="app-hero-meta">
           <div className="app-stat">
-            <span className="app-stat-value">{ranked.length}</span>
+            <span className="app-stat-value">{rankedScores.length}</span>
             <span className="app-stat-label">店舗</span>
           </div>
           <div className="app-stat">
@@ -233,15 +316,11 @@ export default async function AreaRanking(props: {
       <section className="app-card mt-6">
         <div className="space-y-2 text-sm app-text">
           <h2 className="text-base font-semibold">エリアランキングの見方</h2>
-          <p>
-            {area}で営業する讃岐うどん店を、評価とレビュー件数をもとに並べています。
-          </p>
+          <p>{area}で営業する讃岐うどん店を、評価とレビュー件数をもとに並べています。</p>
           <p>
             近場で人気の店を探したいときに便利です。旅行や出張の前に候補を絞り込む用途にも向いています。
           </p>
-          <p>
-            レビュー件数が多い店は、評価の信頼性が高い目安になります。
-          </p>
+          <p>レビュー件数が多い店は、評価の信頼性が高い目安になります。</p>
           <p>
             情報は Google Maps の公開情報を参照しています。最新の営業状況は来店前にご確認ください。
           </p>
@@ -249,7 +328,8 @@ export default async function AreaRanking(props: {
       </section>
 
       <div className="mt-4 text-xs app-muted">
-        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}件/ページ）
+        表示: {startIndex + 1}-{endIndex} / {rankedScores.length}件（{perPage}
+        件/ページ）
       </div>
 
       <ol className="mt-4 space-y-4">
@@ -271,9 +351,7 @@ export default async function AreaRanking(props: {
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-3">
-                    <span className="app-badge app-badge--accent">
-                      #{startIndex + idx + 1}
-                    </span>
+                    <span className="app-badge app-badge--accent">#{startIndex + idx + 1}</span>
                     <Link
                       href={`/shops/${encodeURIComponent(r.placeId)}`}
                       className="font-semibold break-words underline"
@@ -282,30 +360,18 @@ export default async function AreaRanking(props: {
                     </Link>
                   </div>
 
-                  {r.address && (
-                    <div className="mt-2 text-sm app-muted break-words">
-                      {r.address}
-                    </div>
-                  )}
+                  {r.address && <div className="mt-2 text-sm app-muted break-words">{r.address}</div>}
 
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="app-badge app-badge--accent">
-                      ★{r.rating}
-                    </span>
-                    <span className="app-badge app-badge--soft">
-                      {r.userRatingCount}件
-                    </span>
-                    {openNow === true && (
-                      <span className="app-badge app-badge--accent">営業中</span>
-                    )}
+                    <span className="app-badge app-badge--accent">★{r.rating?.toFixed(1)}</span>
+                    <span className="app-badge app-badge--soft">{r.userRatingCount}件</span>
+                    {openNow === true && <span className="app-badge app-badge--accent">営業中</span>}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 shrink-0">
-                  <Link
-                    className="app-button"
-                    href={`/shops/${encodeURIComponent(r.placeId)}`}
-                  >
+                  <FavoriteButton placeId={r.placeId} name={r.name} />
+                  <Link className="app-button" href={`/shops/${encodeURIComponent(r.placeId)}`}>
                     詳細
                   </Link>
                   <a

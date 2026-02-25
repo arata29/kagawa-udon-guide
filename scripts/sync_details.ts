@@ -145,7 +145,7 @@ const computeOpenDays = (openingHours?: Details["regularOpeningHours"] | null) =
 
     const openMinutes = toMinutes(open.hour, open.minute);
     const closeMinutes = toMinutes(close.hour, close.minute);
-    let openWeek = toWeekMinutes(open.day, openMinutes);
+    const openWeek = toWeekMinutes(open.day, openMinutes);
     let closeWeek = toWeekMinutes(close.day, closeMinutes);
 
     if (closeWeek <= openWeek) {

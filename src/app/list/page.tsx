@@ -1,9 +1,11 @@
 ﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import type { Metadata } from "next";
 import { cache } from "react";
 import UdonIcon from "@/components/UdonIcon";
 import Breadcrumb from "@/components/Breadcrumb";
+import FavoriteButton from "@/components/FavoriteButton";
 import OpenHoursFilter from "@/app/list/OpenHoursFilter";
 import { siteUrl } from "@/lib/site";
 import {
@@ -15,12 +17,35 @@ import {
   parseTimeInput,
 } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
+import { safeDbQuery } from "@/lib/db";
 
 const listTitle = "【香川】讃岐うどん店一覧｜検索・絞り込み";
 const listDescription =
   "香川の讃岐うどん人気・おすすめ店を一覧で検索。評価・レビュー件数・エリア・営業時間で絞り込みできます。";
 const listPageSize = 30;
-const getTotalCount = cache(async () => prisma.placeCache.count());
+const getTotalCount = cache(async () => {
+  const result = await safeDbQuery("list total count", () =>
+    prisma.placeCache.count()
+  );
+  return result.ok ? result.data : 0;
+});
+const placeListSelect = {
+  placeId: true,
+  name: true,
+  address: true,
+  lat: true,
+  lng: true,
+  rating: true,
+  userRatingCount: true,
+  googleMapsUri: true,
+  openingHours: true,
+  utcOffsetMinutes: true,
+  openDays: true,
+  fetchedAt: true,
+} as const;
+type PlaceListItem = Prisma.PlaceCacheGetPayload<{
+  select: typeof placeListSelect;
+}>;
 
 type RawSearchParams = {
   q?: string | string[];
@@ -158,6 +183,22 @@ export default async function ListPage({
   const take = listPageSize;
   const skip = (page - 1) * take;
 
+  const ratingWhere =
+    minRating > 0 || sort === "rating"
+      ? {
+          ...(minRating > 0 ? { gte: minRating } : {}),
+          ...(sort === "rating" ? { not: null } : {}),
+        }
+      : undefined;
+
+  const reviewsWhere =
+    minReviews > 0 || sort === "reviews"
+      ? {
+          ...(minReviews > 0 ? { gte: minReviews } : {}),
+          ...(sort === "reviews" ? { not: null } : {}),
+        }
+      : undefined;
+
   const where = {
     ...(q
       ? {
@@ -168,10 +209,8 @@ export default async function ListPage({
         }
       : {}),
     ...(area ? { area } : {}),
-    ...(minRating > 0 ? { rating: { gte: minRating } } : {}),
-    ...(minReviews > 0 ? { userRatingCount: { gte: minReviews } } : {}),
-    ...(sort === "rating" ? { rating: { not: null } } : {}),
-    ...(sort === "reviews" ? { userRatingCount: { not: null } } : {}),
+    ...(ratingWhere ? { rating: ratingWhere } : {}),
+    ...(reviewsWhere ? { userRatingCount: reviewsWhere } : {}),
     ...(hasOpenDayFilter ? { openDays: { has: openDayIndex } } : {}),
   };
 
@@ -184,21 +223,63 @@ export default async function ListPage({
           { fetchedAt: "desc" as const },
         ];
 
-  const [areaRows, basePlaces, totalBase] = await Promise.all([
-    prisma.placeCache.findMany({
-      where: { area: { not: null } },
-      distinct: ["area"],
-      select: { area: true },
-    }),
-    needsOpenFilter
-      ? prisma.placeCache.findMany({ where, orderBy })
-      : prisma.placeCache.findMany({ where, orderBy, take, skip }),
-    needsOpenFilter
-      ? Promise.resolve(0)
-      : hasFilters
-        ? prisma.placeCache.count({ where })
-        : getTotalCount(),
-  ]);
+  let areaRows: Array<{ area: string | null }> = [];
+  let basePlaces: PlaceListItem[] = [];
+  let totalBase = 0;
+  let dbUnavailable = false;
+
+  const listResult = await safeDbQuery("list page", () =>
+    Promise.all([
+      prisma.placeCache.findMany({
+        where: { area: { not: null } },
+        distinct: ["area"],
+        select: { area: true },
+      }),
+      needsOpenFilter
+        ? prisma.placeCache.findMany({ where, orderBy, select: placeListSelect })
+        : prisma.placeCache.findMany({
+            where,
+            orderBy,
+            take,
+            skip,
+            select: placeListSelect,
+          }),
+      needsOpenFilter
+        ? Promise.resolve(0)
+        : hasFilters
+          ? prisma.placeCache.count({ where })
+          : getTotalCount(),
+    ])
+  );
+  if (listResult.ok) {
+    [areaRows, basePlaces, totalBase] = listResult.data;
+  } else {
+    dbUnavailable = true;
+  }
+
+  if (dbUnavailable) {
+    return (
+      <main className="app-shell page-in">
+        <section className="app-hero">
+          <div>
+            <p className="app-kicker">Sanuki Udon Index</p>
+            <h1 className="app-title">
+              <UdonIcon className="app-title-icon" />
+              讃岐うどん店一覧
+            </h1>
+            <p className="app-lead">
+              データベースに接続できないため、一覧を表示できませんでした。
+            </p>
+            <div className="mt-4">
+              <Link className="app-button app-button--ghost" href="/">
+                トップへ戻る
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   const filteredPlaces = needsOpenFilter
     ? basePlaces.filter((p) => {
@@ -223,30 +304,9 @@ export default async function ListPage({
       })
     : basePlaces;
 
-  const ratingThreshold = minRating > 0 ? minRating : null;
-  const reviewThreshold = minReviews > 0 ? minReviews : null;
-  const strictPlaces =
-    ratingThreshold != null || reviewThreshold != null
-      ? filteredPlaces.filter((p) => {
-          if (
-            ratingThreshold != null &&
-            (p.rating == null || p.rating < ratingThreshold)
-          ) {
-            return false;
-          }
-          if (
-            reviewThreshold != null &&
-            (p.userRatingCount == null || p.userRatingCount < reviewThreshold)
-          ) {
-            return false;
-          }
-          return true;
-        })
-      : filteredPlaces;
-
-  const total = needsOpenFilter ? strictPlaces.length : totalBase;
+  const total = needsOpenFilter ? filteredPlaces.length : totalBase;
   const places = needsOpenFilter
-    ? strictPlaces.slice(skip, skip + take)
+    ? filteredPlaces.slice(skip, skip + take)
     : basePlaces;
 
   const areas = areaRows
@@ -501,7 +561,7 @@ export default async function ListPage({
                 <div className="mt-3 flex flex-wrap gap-2">
                   {p.rating != null && (
                     <span className="app-badge app-badge--accent">
-                      ★{p.rating}
+                      ★{p.rating.toFixed(1)}
                     </span>
                   )}
                   {p.userRatingCount != null && (
@@ -521,6 +581,7 @@ export default async function ListPage({
               </div>
 
                   <div className="flex gap-2 sm:flex-col sm:items-end">
+                    <FavoriteButton placeId={p.placeId} name={p.name} />
                     <Link
                       href={`/shops/${encodeURIComponent(p.placeId)}`}
                       className="app-button"

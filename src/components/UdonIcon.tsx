@@ -1,16 +1,18 @@
+import Image from "next/image";
+
 type Props = {
   className?: string;
 };
 
 export default function UdonIcon({ className }: Props) {
   return (
-    <img
+    <Image
       src="/icon-192.png"
       alt=""
       aria-hidden="true"
       className={className}
+      unoptimized
       loading="eager"
-      decoding="async"
       width={24}
       height={24}
     />

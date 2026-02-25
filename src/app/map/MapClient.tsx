@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MarkerClusterer } from "@googlemaps/markerclusterer";
+import FavoriteButton, { getFavorites } from "@/components/FavoriteButton";
 import {
   getLocalDayMinutes,
   isOpenAt,
@@ -165,6 +166,15 @@ function attachMarkerHoverListener(marker: MapMarker, handler: () => void) {
   }
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function getOpenDays(value: unknown): number[] | null {
   const days = Array.isArray(value) ? value : null;
   return days && days.length > 0 ? days : null;
@@ -231,6 +241,8 @@ function getMarkerPosition(marker: MapMarker) {
 export default function MapClient({ places }: { places: PlacePin[] }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const listContentRef = useRef<HTMLDivElement | null>(null);
+  const listItemRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const markersRef = useRef<Map<string, MapMarker>>(new Map());
@@ -247,6 +259,8 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
   const [openDay, setOpenDay] = useState<string>("");
   const [sheetExpanded, setSheetExpanded] = useState<boolean>(false);
   const [locating, setLocating] = useState<boolean>(false);
+  const [favoritesOnly, setFavoritesOnly] = useState<boolean>(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const areaOptions = useMemo(() => {
     const options = new Set<string>();
@@ -308,6 +322,10 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
       });
     }
 
+    if (favoritesOnly) {
+      filtered = filtered.filter((p) => favoriteIds.has(p.placeId));
+    }
+
     const sorted = [...filtered].sort((a, b) => {
       const ratingA = a.rating ?? 0;
       const ratingB = b.rating ?? 0;
@@ -324,13 +342,24 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
     });
 
     return sorted;
-  }, [places, area, minRating, minReviews, sort, openNow, openAt, openDay]);
+  }, [places, area, minRating, minReviews, sort, openNow, openAt, openDay, favoritesOnly, favoriteIds]);
 
   useEffect(() => {
     if (!selectedId) return;
     const stillExists = filteredPlaces.some((p) => p.placeId === selectedId);
     if (!stillExists) setSelectedId(null);
   }, [filteredPlaces, selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    if (window.innerWidth <= 1024 && !sheetExpanded) return;
+    listItemRefs.current.get(selectedId)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedId, sheetExpanded]);
+
+  useEffect(() => {
+    const ids = getFavorites().map((f) => f.placeId);
+    setFavoriteIds(new Set(ids));
+  }, [favoritesOnly]);
 
   useEffect(() => {
     if (!sheetExpanded) return;
@@ -414,10 +443,13 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
         infoWindowRef.current =
           infoWindowRef.current ?? new window.google.maps.InfoWindow();
 
+        infoWindowRef.current?.close();
         markersRef.current.forEach((marker) => clearMarker(marker));
         markersRef.current = new Map();
         if (clustererRef.current) {
           clustererRef.current.clearMarkers();
+          clustererRef.current.setMap(null);
+          clustererRef.current = null;
         }
 
         const bounds = new window.google.maps.LatLngBounds();
@@ -478,14 +510,16 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
     const marker = markersRef.current.get(place.placeId);
     if (!map || !infoWindow || !marker) return;
 
+    const safeName = escapeHtml(place.name);
+    const safeAddress = place.address ? escapeHtml(place.address) : null;
     const ratingText =
-      place.rating != null ? `評価 ${place.rating}` : "評価なし";
+      place.rating != null ? `評価 ${place.rating.toFixed(1)}` : "評価なし";
     const reviewText =
       place.userRatingCount != null
         ? `レビュー${place.userRatingCount}件`
         : "レビューなし";
     const openUrl = buildMapsUrl(place);
-    const openNow = isOpenNow(place.openingHours, place.utcOffsetMinutes);
+    const shopIsOpen = isOpenNow(place.openingHours, place.utcOffsetMinutes);
     const todayIndex = getLocalDayMinutes(
       new Date(),
       place.utcOffsetMinutes
@@ -501,11 +535,11 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
     infoWindow.setContent(
       `<div style="max-width:240px;background:#fffaf1;border-radius:14px;padding:8px 10px 10px;border:1px solid rgba(201,106,42,0.25);box-shadow:0 12px 30px rgba(90,60,40,0.18);font-size:12px;line-height:1.5;">
         <div style="font-size:13px;font-weight:600;color:#1f2a2e;margin-bottom:4px;word-break:break-word;">
-          ${place.name}
+          ${safeName}
         </div>
         ${
-          place.address
-            ? `<div style="color:#5c6a6d;margin-bottom:6px;word-break:break-word;">${place.address}</div>`
+          safeAddress
+            ? `<div style="color:#5c6a6d;margin-bottom:6px;word-break:break-word;">${safeAddress}</div>`
             : ""
         }
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
@@ -516,7 +550,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
             ${reviewText}
           </span>
           ${
-            openNow === true
+            shopIsOpen === true
               ? `<span style="display:inline-flex;align-items:center;border-radius:999px;background:#2f6d3b;color:#ecfff1;padding:2px 8px;font-size:11px;">営業中</span>`
               : ""
           }
@@ -620,7 +654,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
           </div>
         </div>
 
-        <div className="map-panel-content">
+        <div className="map-panel-content" ref={listContentRef}>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -629,6 +663,28 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
               disabled={locating}
             >
               {locating ? "取得中..." : "現在地"}
+            </button>
+            <button
+              type="button"
+              className={`fav-button${favoritesOnly ? " fav-button--active" : ""}`}
+              aria-pressed={favoritesOnly}
+              onClick={() => setFavoritesOnly((prev) => !prev)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill={favoritesOnly ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              お気に入りのみ
             </button>
           </div>
 
@@ -742,7 +798,8 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
               sort !== "reviews" ||
               openNow ||
               openAt ||
-              openDay) && (
+              openDay ||
+              favoritesOnly) && (
               <div className="mt-2 text-xs app-muted">
                 <button
                   type="button"
@@ -755,6 +812,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
                     setOpenNow(false);
                     setOpenAt("");
                     setOpenDay("");
+                    setFavoritesOnly(false);
                   }}
                 >
                   フィルタをリセット
@@ -775,7 +833,7 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
                 const ratingText = p.rating != null ? p.rating.toFixed(1) : "-";
                 const reviewText =
                   p.userRatingCount != null ? `${p.userRatingCount}件` : "-";
-                const openNow = isOpenNow(p.openingHours, p.utcOffsetMinutes);
+                const shopIsOpen = isOpenNow(p.openingHours, p.utcOffsetMinutes);
                 const todayIndex = getLocalDayMinutes(
                   new Date(),
                   p.utcOffsetMinutes
@@ -787,10 +845,15 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
                     : isClosedOnDay(p.openingHours, todayIndex);
 
                 return (
-                  <li key={p.placeId}>
-                    <button
-                      type="button"
-                      className="app-card app-card--mini w-full text-left"
+                  <li
+                    key={p.placeId}
+                    ref={(el) => {
+                      if (el) listItemRefs.current.set(p.placeId, el);
+                      else listItemRefs.current.delete(p.placeId);
+                    }}
+                  >
+                    <div
+                      className="app-card app-card--mini"
                       style={
                         isActive
                           ? {
@@ -799,41 +862,50 @@ export default function MapClient({ places }: { places: PlacePin[] }) {
                             }
                           : undefined
                       }
-                      onClick={() => {
-                        setSelectedId(p.placeId);
-                        setSheetExpanded(false);
-                        openInfoWindow(p);
-                      }}
                     >
-                      <div className="font-semibold break-words">{p.name}</div>
-                      {p.address && (
-                        <div className="mt-1 text-xs app-muted break-words">
-                          {p.address}
-                        </div>
-                      )}
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="app-badge app-badge--accent">
-                          評価 {ratingText}
-                        </span>
-                        <span className="app-badge">レビュー {reviewText}</span>
-                        {openNow === true && (
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onClick={() => {
+                          setSelectedId(p.placeId);
+                          setSheetExpanded(false);
+                          openInfoWindow(p);
+                        }}
+                      >
+                        <div className="font-semibold break-words">{p.name}</div>
+                        {p.address && (
+                          <div className="mt-1 text-xs app-muted break-words">
+                            {p.address}
+                          </div>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
                           <span className="app-badge app-badge--accent">
-                            営業中
+                            評価 {ratingText}
                           </span>
-                        )}
-                        {closedToday === true && (
-                          <span className="app-badge">定休日</span>
-                        )}
-                        <a
-                          href={openMapsUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="app-muted underline"
-                        >
-                          Googleマップ
-                        </a>
+                          <span className="app-badge">レビュー {reviewText}</span>
+                          {shopIsOpen === true && (
+                            <span className="app-badge app-badge--accent">
+                              営業中
+                            </span>
+                          )}
+                          {closedToday === true && (
+                            <span className="app-badge">定休日</span>
+                          )}
+                          <a
+                            href={openMapsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="app-muted underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Googleマップ
+                          </a>
+                        </div>
+                      </button>
+                      <div className="mt-2 flex justify-end">
+                        <FavoriteButton placeId={p.placeId} name={p.name} />
                       </div>
-                    </button>
+                    </div>
                   </li>
                 );
               })}

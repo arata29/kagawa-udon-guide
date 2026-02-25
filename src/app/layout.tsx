@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import UdonIcon from "@/components/UdonIcon";
+import ScrollToTop from "@/components/ScrollToTop";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
@@ -132,6 +133,12 @@ export default function RootLayout({
                 マップ
               </Link>
               <Link
+                href="/favorites"
+                className="app-nav-link focus:outline-none focus:ring-2 focus:ring-orange-300 rounded"
+              >
+                お気に入り
+              </Link>
+              <Link
                 href="/contact"
                 className="app-nav-link focus:outline-none focus:ring-2 focus:ring-orange-300 rounded"
               >
@@ -142,6 +149,7 @@ export default function RootLayout({
         </header>
 
         {children}
+        <ScrollToTop />
 
         <footer className="site-footer">
           <div className="app-shell">
@@ -167,6 +175,9 @@ export default function RootLayout({
                   </Link>
                   <Link className="footer-link" href="/map">
                     マップ
+                  </Link>
+                  <Link className="footer-link" href="/favorites">
+                    お気に入り
                   </Link>
                 </div>
               </div>

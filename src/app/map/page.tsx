@@ -5,6 +5,9 @@ import UdonIcon from "@/components/UdonIcon";
 import Breadcrumb from "@/components/Breadcrumb";
 import { siteUrl } from "@/lib/site";
 import type { OpeningHours } from "@/lib/openingHours";
+import { safeDbQuery } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "【香川】讃岐うどんマップ｜地図で探す",
@@ -13,26 +16,49 @@ export const metadata: Metadata = {
 };
 
 export default async function MapPage() {
-  const rawPlaces = await prisma.placeCache.findMany({
-    where: {
-      lat: { not: null },
-      lng: { not: null },
-    },
-    select: {
-      placeId: true,
-      name: true,
-      address: true,
-      area: true,
-      lat: true,
-      lng: true,
-      rating: true,
-      userRatingCount: true,
-      googleMapsUri: true,
-      openingHours: true,
-      utcOffsetMinutes: true,
-    },
-    orderBy: { fetchedAt: "desc" },
-  });
+  type MapPlaceRow = {
+    placeId: string;
+    name: string;
+    address: string | null;
+    area: string | null;
+    lat: number | null;
+    lng: number | null;
+    rating: number | null;
+    userRatingCount: number | null;
+    googleMapsUri: string | null;
+    openingHours: unknown;
+    utcOffsetMinutes: number | null;
+  };
+
+  let rawPlaces: MapPlaceRow[] = [];
+  let dbUnavailable = false;
+  const placesResult = await safeDbQuery("map places", () =>
+      prisma.placeCache.findMany({
+        where: {
+          lat: { not: null },
+          lng: { not: null },
+        },
+        select: {
+          placeId: true,
+          name: true,
+          address: true,
+          area: true,
+          lat: true,
+          lng: true,
+          rating: true,
+          userRatingCount: true,
+          googleMapsUri: true,
+          openingHours: true,
+          utcOffsetMinutes: true,
+        },
+        orderBy: { fetchedAt: "desc" },
+      })
+    );
+  if (placesResult.ok) {
+    rawPlaces = placesResult.data;
+  } else {
+    dbUnavailable = true;
+  }
   const places = rawPlaces
     .filter(
       (place): place is typeof rawPlaces[number] & { lat: number; lng: number } =>
@@ -93,7 +119,15 @@ export default async function MapPage() {
       </section>
 
       <section className="mt-6">
-        <MapClient places={places} />
+        {dbUnavailable ? (
+          <section className="app-card">
+            <p className="app-muted">
+              データベースに接続できないため、地図を表示できませんでした。
+            </p>
+          </section>
+        ) : (
+          <MapClient places={places} />
+        )}
       </section>
     </main>
   );
