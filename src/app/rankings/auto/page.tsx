@@ -1,11 +1,13 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { bayesScore } from "@/lib/ranking";
 import UdonIcon from "@/components/UdonIcon";
+import FavoriteButton from "@/components/FavoriteButton";
 import { siteUrl } from "@/lib/site";
 import { isOpenNow } from "@/lib/openingHours";
 import type { OpeningHours } from "@/lib/openingHours";
+import { safeDbQuery } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "【香川】讃岐うどん総合ランキング｜評価×レビュー",
@@ -14,22 +16,58 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
-  robots: {
-    index: false,
-    follow: true,
-  },
 };
+
+type RankingScoreRow = {
+  placeId: string;
+  rating: number | null;
+  userRatingCount: number | null;
+};
+
+type RankingDetailRow = {
+  placeId: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  rating: number | null;
+  userRatingCount: number | null;
+  googleMapsUri: string | null;
+  openingHours: unknown;
+  utcOffsetMinutes: number | null;
+};
+
+function RankingDbError() {
+  return (
+    <main className="app-shell page-in">
+      <section className="app-hero">
+        <div>
+          <p className="app-kicker">Sanuki Udon Ranking</p>
+          <h1 className="app-title">
+            <UdonIcon className="app-title-icon" />
+            讃岐うどん総合ランキング
+          </h1>
+          <p className="app-lead">
+            データベースに接続できないため、ランキングを表示できませんでした。
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="app-button app-button--ghost" href="/rankings">
+              ランキング一覧へ
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
 
 export default async function AutoRanking({
   searchParams,
-  basePath,
-  showSiteIntro,
 }: {
   searchParams: Promise<{ page?: string }>;
-  basePath?: string;
-  showSiteIntro?: boolean;
 }) {
-  const pageBase = basePath && basePath.length > 0 ? basePath : "/";
+  const pageBase = "/";
+  const showSiteIntro = true;
   const pageHref = (p: number) => `${pageBase}?page=${p}`;
   const buildPageList = (current: number, total: number) => {
     const pages = new Set<number>();
@@ -43,31 +81,34 @@ export default async function AutoRanking({
 
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
+  const where = {
+    rating: { not: null },
+    userRatingCount: { not: null },
+    OR: [
+      { address: { contains: "香川県" } },
+      { address: { contains: "Kagawa" } },
+      { area: { not: null } },
+    ],
+  };
 
-  const rows = await prisma.placeCache.findMany({
-    where: {
-      rating: { not: null },
-      userRatingCount: { not: null },
-      OR: [
-        { address: { contains: "香川県" } },
-        { address: { contains: "Kagawa" } },
-      ],
-    },
-    select: {
-      placeId: true,
-      name: true,
-      address: true,
-      lat: true,
-      lng: true,
-      rating: true,
-      userRatingCount: true,
-      googleMapsUri: true,
-      openingHours: true,
-      utcOffsetMinutes: true,
-    },
-  });
+  let scoreRows: RankingScoreRow[] = [];
+  const scoresResult = await safeDbQuery("auto ranking scores", () =>
+    prisma.placeCache.findMany({
+      where,
+      select: {
+        placeId: true,
+        rating: true,
+        userRatingCount: true,
+      },
+    })
+  );
+  if (scoresResult.ok) {
+    scoreRows = scoresResult.data;
+  } else {
+    return <RankingDbError />;
+  }
 
-  if (rows.length === 0) {
+  if (scoreRows.length === 0) {
     return (
       <main className="app-shell page-in">
         <section className="app-hero">
@@ -91,20 +132,9 @@ export default async function AutoRanking({
     );
   }
 
-  const { _max } = await prisma.placeCache.aggregate({
-    _max: { fetchedAt: true },
-  });
-  const lastSynced = _max.fetchedAt;
-  const lastSyncedLabel = lastSynced
-    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(
-        lastSynced
-      )
-    : null;
-
-  const C = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
+  const C = scoreRows.reduce((s, r) => s + (r.rating ?? 0), 0) / scoreRows.length;
   const m = 50;
-
-  const ranked = rows
+  const rankedScores = scoreRows
     .map((r) => {
       const R = r.rating ?? 0;
       const v = r.userRatingCount ?? 0;
@@ -124,14 +154,90 @@ export default async function AutoRanking({
     });
 
   const perPage = 50;
-  const totalPages = Math.max(1, Math.ceil(ranked.length / perPage));
+  const totalPages = Math.max(1, Math.ceil(rankedScores.length / perPage));
   const currentPage = Math.min(totalPages, page);
   const startIndex = (currentPage - 1) * perPage;
-  const endIndex = Math.min(startIndex + perPage, ranked.length);
-  const paged = ranked.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + perPage, rankedScores.length);
+  const pagedScores = rankedScores.slice(startIndex, endIndex);
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const pageList = buildPageList(currentPage, totalPages);
+
+  const pageIds = pagedScores.map((r) => r.placeId);
+  const topOpenNowCandidateIds = rankedScores.slice(0, 150).map((r) => r.placeId);
+
+  let detailRows: RankingDetailRow[] = [];
+  let openNowCandidates: Array<{
+    placeId: string;
+    name: string;
+    rating: number | null;
+    openingHours: unknown;
+    utcOffsetMinutes: number | null;
+  }> = [];
+  let lastSynced: Date | null = null;
+
+  const detailsResult = await safeDbQuery("auto ranking details", () =>
+    Promise.all([
+      prisma.placeCache.findMany({
+        where: { placeId: { in: pageIds } },
+        select: {
+          placeId: true,
+          name: true,
+          address: true,
+          lat: true,
+          lng: true,
+          rating: true,
+          userRatingCount: true,
+          googleMapsUri: true,
+          openingHours: true,
+          utcOffsetMinutes: true,
+        },
+      }),
+      prisma.placeCache.aggregate({
+        _max: { fetchedAt: true },
+      }),
+      prisma.placeCache.findMany({
+        where: { placeId: { in: topOpenNowCandidateIds } },
+        select: {
+          placeId: true,
+          name: true,
+          rating: true,
+          openingHours: true,
+          utcOffsetMinutes: true,
+        },
+      }),
+    ])
+  );
+  if (!detailsResult.ok) {
+    return <RankingDbError />;
+  }
+  const [details, { _max }, openNowRows] = detailsResult.data;
+  detailRows = details;
+  openNowCandidates = openNowRows;
+  lastSynced = _max.fetchedAt;
+
+  const detailMap = new Map(detailRows.map((r) => [r.placeId, r]));
+  const paged = pagedScores
+    .map((score) => {
+      const detail = detailMap.get(score.placeId);
+      if (!detail) return null;
+      return { ...detail, score: score.score };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+
+  const openNowMap = new Map(openNowCandidates.map((r) => [r.placeId, r]));
+  const openNowTop = topOpenNowCandidateIds
+    .map((id) => openNowMap.get(id))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r))
+    .filter(
+      (r) =>
+        isOpenNow(r.openingHours as OpeningHours | null, r.utcOffsetMinutes) === true
+    )
+    .slice(0, 5);
+
+  const lastSyncedLabel = lastSynced
+    ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
+    : null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -186,7 +292,7 @@ export default async function AutoRanking({
         </div>
         <div className="app-hero-meta">
           <div className="app-stat">
-            <span className="app-stat-value">{ranked.length}</span>
+            <span className="app-stat-value">{rankedScores.length}</span>
             <span className="app-stat-label">店舗</span>
           </div>
           <div className="app-stat">
@@ -220,27 +326,65 @@ export default async function AutoRanking({
           <h2 className="text-sm font-semibold mb-3">このサイトでできること</h2>
           <ul className="space-y-2 text-sm app-text">
             <li>
-              <Link className="underline" href="/">総合ランキング</Link>
+              <Link className="underline" href="/">
+                総合ランキング
+              </Link>
               — 香川全域のうどん店をベイズ平均スコアで順位付け
             </li>
             <li>
-              <Link className="underline" href="/rankings">エリア別ランキング</Link>
+              <Link className="underline" href="/rankings">
+                エリア別ランキング
+              </Link>
               — 高松・丸亀・坂出など地区ごとの人気店を比較
             </li>
             <li>
-              <Link className="underline" href="/list">店舗一覧・検索</Link>
+              <Link className="underline" href="/list">
+                店舗一覧・検索
+              </Link>
               — 評価・レビュー件数・営業時間・エリアで絞り込み
             </li>
             <li>
-              <Link className="underline" href="/map">マップ</Link>
+              <Link className="underline" href="/map">
+                マップ
+              </Link>
               — 香川県内のうどん店を地図上で一覧表示
             </li>
           </ul>
         </section>
       )}
 
+      {showSiteIntro && (() => {
+        if (openNowTop.length === 0) return null;
+        return (
+          <section className="app-card mt-6">
+            <h2 className="text-sm font-semibold mb-3">今すぐ行ける！営業中の人気店</h2>
+            <ul className="space-y-2">
+              {openNowTop.map((r, i) => (
+                <li key={r.placeId} className="flex items-center gap-3 text-sm">
+                  <span className="app-badge app-badge--open shrink-0">#{i + 1}</span>
+                  <Link
+                    href={`/shops/${encodeURIComponent(r.placeId)}`}
+                    className="underline break-words min-w-0"
+                  >
+                    {r.name}
+                  </Link>
+                  <span className="app-badge app-badge--accent shrink-0 ml-auto">
+                    ★{r.rating?.toFixed(1)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3">
+              <Link href="/list?openNow=1&page=1" className="text-xs underline app-muted">
+                営業中の全店舗を見る →
+              </Link>
+            </div>
+          </section>
+        );
+      })()}
+
       <div className="mt-4 text-xs app-muted">
-        表示: {startIndex + 1}-{endIndex} / {ranked.length}件（{perPage}
+        表示: {startIndex + 1}-{endIndex} / {rankedScores.length}件（{perPage}
         件/ページ）
       </div>
 
@@ -258,47 +402,59 @@ export default async function AutoRanking({
             r.utcOffsetMinutes
           );
 
+          const rank = startIndex + idx + 1;
+          const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
+          const isTop3 = rank <= 3;
+
           return (
-            <li key={r.placeId} className="app-card">
+            <li
+              key={r.placeId}
+              className={`app-card${isTop3 ? " app-card--top3" : ""}${
+                rank === 1
+                  ? " app-card--gold"
+                  : rank === 2
+                    ? " app-card--silver"
+                    : rank === 3
+                      ? " app-card--bronze"
+                      : ""
+              }`}
+            >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-3">
-                    <span className="app-badge app-badge--accent">
-                      #{startIndex + idx + 1}
+                    <span
+                      className={`app-rank-badge${
+                        rank === 1
+                          ? " app-rank-badge--gold"
+                          : rank === 2
+                            ? " app-rank-badge--silver"
+                            : rank === 3
+                              ? " app-rank-badge--bronze"
+                              : ""
+                      }`}
+                    >
+                      {medal ?? `#${rank}`}
                     </span>
                     <Link
                       href={`/shops/${encodeURIComponent(r.placeId)}`}
-                      className="font-semibold break-words underline"
+                      className={`font-semibold break-words underline${isTop3 ? " text-base" : ""}`}
                     >
                       {r.name}
                     </Link>
                   </div>
 
-                  {r.address && (
-                    <div className="mt-2 text-sm app-muted break-words">
-                      {r.address}
-                    </div>
-                  )}
+                  {r.address && <div className="mt-2 text-sm app-muted break-words">{r.address}</div>}
 
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="app-badge app-badge--accent">
-                      ★{r.rating}
-                    </span>
-                    <span className="app-badge app-badge--soft">
-                      {r.userRatingCount}件
-                    </span>
-                    {openNow === true && (
-                      <span className="app-badge app-badge--accent">営業中</span>
-                    )}
+                    <span className="app-badge app-badge--accent">★{r.rating?.toFixed(1)}</span>
+                    <span className="app-badge app-badge--soft">{r.userRatingCount}件</span>
+                    {openNow === true && <span className="app-badge app-badge--open">営業中</span>}
                   </div>
-
                 </div>
 
                 <div className="flex flex-col gap-2 shrink-0">
-                  <Link
-                    className="app-button"
-                    href={`/shops/${encodeURIComponent(r.placeId)}`}
-                  >
+                  <FavoriteButton placeId={r.placeId} name={r.name} />
+                  <Link className="app-button" href={`/shops/${encodeURIComponent(r.placeId)}`}>
                     詳細
                   </Link>
                   <a
@@ -336,10 +492,7 @@ export default async function AutoRanking({
                 {p === currentPage ? (
                   <span className="app-badge app-badge--accent">{p}</span>
                 ) : (
-                  <Link
-                    className="app-button app-button--ghost"
-                    href={pageHref(p)}
-                  >
+                  <Link className="app-button app-button--ghost" href={pageHref(p)}>
                     {p}
                   </Link>
                 )}
@@ -361,9 +514,7 @@ export default async function AutoRanking({
         </Link>
       </nav>
 
-      <p className="mt-6 text-xs app-muted">
-        ※評価/件数は Google Places のデータに基づきます。
-      </p>
+      <p className="mt-6 text-xs app-muted">※評価/件数は Google Places のデータに基づきます。</p>
     </main>
   );
 }

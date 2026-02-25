@@ -4,6 +4,7 @@ import UdonIcon from "@/components/UdonIcon";
 import Breadcrumb from "@/components/Breadcrumb";
 import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site";
+import { safeDbQuery } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "【香川】讃岐うどんランキング一覧｜総合・エリア別",
@@ -12,18 +13,56 @@ export const metadata: Metadata = {
 };
 
 export default async function RankingsHub() {
-  const rows = await prisma.placeCache.findMany({
-    where: {
-      rating: { not: null },
-      userRatingCount: { not: null },
-      area: { not: null },
-    },
-    select: { area: true },
-  });
-  const { _max } = await prisma.placeCache.aggregate({
-    _max: { fetchedAt: true },
-  });
-  const lastSynced = _max.fetchedAt;
+  let rows: Array<{ area: string | null }> = [];
+  let lastSynced: Date | null = null;
+  let dbUnavailable = false;
+  const rankingHubResult = await safeDbQuery("rankings hub", () =>
+    Promise.all([
+      prisma.placeCache.findMany({
+        where: {
+          rating: { not: null },
+          userRatingCount: { not: null },
+          area: { not: null },
+        },
+        select: { area: true },
+      }),
+      prisma.placeCache.aggregate({
+        _max: { fetchedAt: true },
+      }),
+    ])
+  );
+  if (rankingHubResult.ok) {
+    const [areaRows, { _max }] = rankingHubResult.data;
+    rows = areaRows;
+    lastSynced = _max.fetchedAt;
+  } else {
+    dbUnavailable = true;
+  }
+
+  if (dbUnavailable) {
+    return (
+      <main className="app-shell page-in">
+        <section className="app-hero">
+          <div>
+            <p className="app-kicker">Ranking Guide</p>
+            <h1 className="app-title">
+              <UdonIcon className="app-title-icon" />
+              讃岐うどんランキング一覧
+            </h1>
+            <p className="app-lead">
+              データベースに接続できないため、ランキング一覧を表示できませんでした。
+            </p>
+            <div className="mt-4">
+              <Link className="app-button app-button--ghost" href="/">
+                トップへ戻る
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   const lastSyncedLabel = lastSynced
     ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(lastSynced)
     : null;

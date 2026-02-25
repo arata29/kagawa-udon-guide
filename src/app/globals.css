@@ -270,6 +270,10 @@ textarea::placeholder {
     align-items: flex-end;
     justify-content: space-between;
   }
+
+  .app-hero--shop {
+    align-items: flex-start;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -680,4 +684,62 @@ textarea::placeholder {
   display: flex;
   flex-wrap: wrap;
   gap: 0.9rem;
+}
+
+/* ── ScrollToTop ─────────────────────────────────────────── */
+.scroll-to-top {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.5rem;
+  z-index: 60;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.scroll-to-top:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+/* ── FavoriteButton ──────────────────────────────────────── */
+.fav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 180ms, border-color 180ms, background 180ms;
+}
+.fav-button--active {
+  color: #c0392b;
+  border-color: rgba(192, 57, 43, 0.4);
+  background: rgba(192, 57, 43, 0.07);
+}
+.fav-button:hover:not(.fav-button--active) {
+  background: rgba(201, 106, 42, 0.08);
+  border-color: rgba(201, 106, 42, 0.35);
+  color: var(--ink);
+}
+
+/* ── ShareButton ─────────────────────────────────────────── */
+.share-button--copied {
+  color: #2f6d3b !important;
+  border-color: rgba(47, 109, 59, 0.4) !important;
+  background: rgba(47, 109, 59, 0.08) !important;
 }

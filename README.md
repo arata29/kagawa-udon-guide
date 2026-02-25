@@ -31,9 +31,44 @@ Google Maps の評価・レビュー件数を利用してランキングを作�
 - `build` : 本番ビルド
 - `start` : 本番起動
 - `lint` : ESLint
+- `audit:prod` : 本番依存のみの脆弱性監査（推奨）
+- `audit:all` : 開発依存を含む脆弱性監査
+- `audit:fix:safe` : 非破壊的な範囲で自動修正
 - `sync:places` : Google Places Text Search で店舗候補を取得（新規のみ追加）
 - `sync:details` : Place Details を取得して評価・レビュー・営業時間などを更新（直近更新はスキップ）
 - `delete:places` : Place / PlaceCache の全件削除（確認プロンプトあり）
+- `test:e2e:smoke` : スモークE2E（主要ページ・sitemap/robots・contact API検証）
+- `release:check` : 公開前チェック一式（`lint`→`build`→本番起動→`test:e2e:smoke`）
+
+## 公開前最終チェック
+
+```
+npm run release:check
+```
+
+`release:check` は以下を自動実行します。
+
+- `lint`
+- `build`
+- 本番サーバー起動（デフォルト `3100` ポート）
+- `test:e2e:smoke`
+  - `sitemap.xml` / `robots.txt` の確認
+  - 主要ページのHTTP応答と本文キーワード確認
+  - `sitemap.xml` 内URLの全件HTTP確認
+  - `contact` APIの入力バリデーションとレート制限確認
+- サーバー停止
+
+### オプション環境変数
+
+- `RELEASE_CHECK_PORT` : `release:check` で使う起動ポート（既定: `3100`）
+- `E2E_BASE_URL` : E2E接続先URL（通常は未指定でOK）
+- `E2E_CONCURRENCY` : sitemap URL確認の並列数（既定: `8`）
+
+## セキュリティ監査ポリシー
+
+- まず `npm run audit:prod` を基準に確認します（本番影響のある依存を優先）。
+- `npm run audit:all` で出る開発依存の警告は、破壊的更新の必要有無を見て別途判断します。
+- `npm audit fix --force` は破壊的変更を含むため、通常運用では使わず検証ブランチでのみ実施します。
 
 ## DB（Prisma）
 

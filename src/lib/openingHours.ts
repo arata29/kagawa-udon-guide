@@ -8,6 +8,11 @@ export type OpeningHours = {
   weekdayDescriptions?: string[];
 };
 
+type OpenStatusSummary = {
+  isOpenNow: boolean | null;
+  nextOpenLabel: string | null;
+};
+
 const MINUTES_IN_DAY = 24 * 60;
 const MINUTES_IN_WEEK = 7 * MINUTES_IN_DAY;
 const DEFAULT_UTC_OFFSET_MINUTES = 540;
@@ -17,6 +22,14 @@ const toMinutes = (hour?: number, minute?: number) =>
 
 const toWeekMinutes = (day?: number, minutes?: number) =>
   (day ?? 0) * MINUTES_IN_DAY + (minutes ?? 0);
+
+const DAY_LABELS_JA = ["日", "月", "火", "水", "木", "金", "土"];
+
+const formatTime = (minutes: number) => {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+};
 
 export const parseTimeInput = (value: string): number | null => {
   if (!value) return null;
@@ -58,7 +71,7 @@ export const isOpenAt = (
 
     const openMinutes = toMinutes(open.hour, open.minute);
     const closeMinutes = toMinutes(close.hour, close.minute);
-    let openWeek = toWeekMinutes(open.day, openMinutes);
+    const openWeek = toWeekMinutes(open.day, openMinutes);
     let closeWeek = toWeekMinutes(close.day, closeMinutes);
 
     if (closeWeek <= openWeek) {
@@ -95,7 +108,7 @@ export const isOpenOnDay = (
 
     const openMinutes = toMinutes(open.hour, open.minute);
     const closeMinutes = toMinutes(close.hour, close.minute);
-    let openWeek = toWeekMinutes(open.day, openMinutes);
+    const openWeek = toWeekMinutes(open.day, openMinutes);
     let closeWeek = toWeekMinutes(close.day, closeMinutes);
 
     if (closeWeek <= openWeek) {
@@ -143,4 +156,49 @@ export const isOpenAtTimeInput = (
   if (minutes == null) return null;
   const { day } = getLocalDayMinutes(now, utcOffsetMinutes);
   return isOpenAt(openingHours, day, minutes);
+};
+
+export const getOpenStatusSummary = (
+  openingHours: OpeningHours | null | undefined,
+  utcOffsetMinutes: number | null | undefined,
+  now = new Date()
+): OpenStatusSummary => {
+  const periods = openingHours?.periods ?? [];
+  const isOpen = isOpenNow(openingHours, utcOffsetMinutes, now);
+  if (periods.length === 0) {
+    return { isOpenNow: null, nextOpenLabel: null };
+  }
+
+  const current = getLocalDayMinutes(now, utcOffsetMinutes);
+  const currentWeekMinutes = toWeekMinutes(current.day, current.minutes);
+  let nextOpenWeekMinutes: number | null = null;
+
+  for (const period of periods) {
+    const open = period.open;
+    if (!open || open.day == null) continue;
+    const openWeekMinutes = toWeekMinutes(open.day, toMinutes(open.hour, open.minute));
+    const candidates = [openWeekMinutes, openWeekMinutes + MINUTES_IN_WEEK];
+    for (const candidate of candidates) {
+      if (candidate <= currentWeekMinutes) continue;
+      if (nextOpenWeekMinutes == null || candidate < nextOpenWeekMinutes) {
+        nextOpenWeekMinutes = candidate;
+      }
+    }
+  }
+
+  if (nextOpenWeekMinutes == null) {
+    return { isOpenNow: isOpen, nextOpenLabel: null };
+  }
+
+  const diff = nextOpenWeekMinutes - currentWeekMinutes;
+  const dayOffset = Math.floor(diff / MINUTES_IN_DAY);
+  const openDay = Math.floor((nextOpenWeekMinutes % MINUTES_IN_WEEK) / MINUTES_IN_DAY);
+  const openMinutes = nextOpenWeekMinutes % MINUTES_IN_DAY;
+  const prefix =
+    dayOffset <= 0 ? "本日" : dayOffset === 1 ? "明日" : `${DAY_LABELS_JA[openDay]}曜`;
+
+  return {
+    isOpenNow: isOpen,
+    nextOpenLabel: `${prefix} ${formatTime(openMinutes)}`,
+  };
 };
